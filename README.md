@@ -80,4 +80,4 @@ freq, df, psd = sa.fft_spectrum(time_array, pressure_array)
 
 ## License
 
-[MIT License](LICENSE)
+[GPL-3.0 License](LICENSE)
