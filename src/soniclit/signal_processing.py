@@ -15,7 +15,7 @@ Notes
 
 import os
 import numpy as np
-import scipy.signal as signal
+import scipy.signal as sp_signal
 
 
 def next_greater_power_of_2(num : int):
@@ -124,10 +124,15 @@ def fft_spectrum(time, signal, save_output : bool = False, out_dir : str = "", d
     
     sig_fft = np.fft.rfft(signal) # Fourier-transformed signal, real part only
     
+    # OPTIMIZATION: Calculate squared magnitude directly from real and imaginary parts
+    # to avoid expensive complex conjugation, multiplication, and sqrt calls.
+    # |z|^2 = z.real^2 + z.imag^2
+    psd_unscaled = sig_fft.real**2 + sig_fft.imag**2
+
     if scale_spectrum == True:
-        power_spectral_density = abs(sig_fft*np.conjugate(sig_fft))/(sampling_frequency*len(signal))
+        power_spectral_density = psd_unscaled/(sampling_frequency*len(signal))
     else:
-        power_spectral_density = abs(sig_fft*np.conjugate(sig_fft))
+        power_spectral_density = psd_unscaled
     
     if scale_freq == True:
         power_spectral_density = power_spectral_density/df
@@ -212,10 +217,10 @@ def welch_spectrum(time, signal, save_output : bool = False, out_dir : str = "",
     df = sampling_frequency/fft_length
     
     if scale_freq == True:
-        freq, power_spectral_density = signal.welch(signal, sampling_frequency, nperseg=samples_per_segment, noverlap=overlap*samples_per_segment, nfft=fft_length,
+        freq, power_spectral_density = sp_signal.welch(signal, sampling_frequency, nperseg=samples_per_segment, noverlap=overlap*samples_per_segment, nfft=fft_length,
                           window=window, return_onesided=True, detrend='constant', scaling='density', axis=-1)
     else:
-        freq, power_spectral_density = signal.welch(signal, sampling_frequency, nperseg=samples_per_segment, noverlap=overlap*samples_per_segment, nfft=fft_length,
+        freq, power_spectral_density = sp_signal.welch(signal, sampling_frequency, nperseg=samples_per_segment, noverlap=overlap*samples_per_segment, nfft=fft_length,
                           window=window, return_onesided=True, detrend='constant', scaling='spectrum', axis=-1)
     
     
@@ -264,14 +269,14 @@ def auto_corr(signal, save_output : bool = False, out_dir : str = "", normalised
     """
     signal = signal - np.mean(signal)
     
-    auto_correlation = signal.correlate(signal, signal, mode='full', method='auto')
+    auto_correlation = sp_signal.correlate(signal, signal, mode='full', method='auto')
     auto_correlation = auto_correlation[auto_correlation.size//2:]
 
     if normalised == True:
         sig_var = np.var(signal)
         auto_correlation = auto_correlation / sig_var / len(signal)//2
     
-    acorr_lags = signal.correlation_lags(len(signal), len(signal), mode='full')
+    acorr_lags = sp_signal.correlation_lags(len(signal), len(signal), mode='full')
     acorr_lags = acorr_lags[acorr_lags.size//2:]
 
     if save_output == True:
@@ -321,9 +326,9 @@ def cross_corr(signal1, signal2, mode : str = 'full', save_output : bool = False
     signal1 = signal1 - np.mean(signal1)
     signal2 = signal2 - np.mean(signal2)
     
-    cross_correlation = signal.correlate(signal1, signal2, mode=mode, method='auto')
+    cross_correlation = sp_signal.correlate(signal1, signal2, mode=mode, method='auto')
     
-    xcorr_lags = signal.correlation_lags(len(signal1), len(signal2), mode=mode)
+    xcorr_lags = sp_signal.correlation_lags(len(signal1), len(signal2), mode=mode)
     
     if save_output == True:
         os.makedirs(out_dir, exist_ok=True)
@@ -424,10 +429,10 @@ def cross_spectrum(time1, signal1, time2, signal2, save_output : bool = False, o
     
     
     if scale_freq == True:
-        freq, cross_power_spectral_density = signal.csd(signal1, signal2, fs1, nperseg=samples_per_segment, noverlap=overlap*samples_per_segment, nfft=fft_length,
+        freq, cross_power_spectral_density = sp_signal.csd(signal1, signal2, fs1, nperseg=samples_per_segment, noverlap=overlap*samples_per_segment, nfft=fft_length,
                           window=window, return_onesided=True, detrend='constant', scaling='density', axis=-1)
     else:
-        freq, cross_power_spectral_density = signal.csd(signal1, signal2, fs1, nperseg=samples_per_segment, noverlap=overlap*samples_per_segment, nfft=fft_length,
+        freq, cross_power_spectral_density = sp_signal.csd(signal1, signal2, fs1, nperseg=samples_per_segment, noverlap=overlap*samples_per_segment, nfft=fft_length,
                       window=window, return_onesided=True, detrend='constant', scaling='spectrum', axis=-1)
     
     if db_scale == True:
@@ -603,7 +608,7 @@ def coherence(time1, signal1, time2, signal2, save_output : bool = False, out_di
     fft_length = next_greater_power_of_2(samples_per_segment)
     
     
-    freq, coherence_values = signal.coherence(signal1, signal2, fs1, nperseg=samples_per_segment, noverlap=overlap*samples_per_segment, nfft=fft_length,
+    freq, coherence_values = sp_signal.coherence(signal1, signal2, fs1, nperseg=samples_per_segment, noverlap=overlap*samples_per_segment, nfft=fft_length,
                      window=window, detrend='constant', axis=-1)
     
     #if save_output == True:
