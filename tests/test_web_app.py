@@ -35,16 +35,16 @@ class TestWebApp(unittest.TestCase):
             shutil.rmtree(cls.test_dir)
 
     def test_fwh_tab_load(self):
-        at = AppTest.from_file("src/dhvani/gui/web/app.py")
+        at = AppTest.from_file("src/soniclit/gui/web/app.py")
         at.run(timeout=10)
         self.assertFalse(at.exception)
-        self.assertEqual(at.title[0].value, "Dhvani: Aeroacoustics & Signal Processing")
+        self.assertEqual(at.title[0].value, "SonicLit: Aeroacoustics & Signal Processing")
 
     # Note: Simulating file upload in Streamlit AppTest is currently limited/experimental
     # depending on the version. We will test that the app loads and elements exist.
 
     def test_spectral_tab_interaction(self):
-        at = AppTest.from_file("src/dhvani/gui/web/app.py")
+        at = AppTest.from_file("src/soniclit/gui/web/app.py")
         at.run(timeout=10)
 
         # Switch tab (tabs are not directly clickable in AppTest usually, we access elements by key or structure)

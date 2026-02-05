@@ -9,14 +9,14 @@ import numpy as np
 import os
 import ast
 
-# Import Dhvani modules
-import dhvani.fwh as fwh
-import dhvani.spectral_analysis as sa
+# Import SonicLit modules
+import soniclit.fwh as fwh
+import soniclit.spectral_analysis as sa
 
-class DhvaniApp:
+class SonicLitApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Dhvani GUI")
+        self.root.title("SonicLit GUI")
         self.root.geometry("800x700")
 
         self.notebook = ttk.Notebook(root)
@@ -241,5 +241,5 @@ class DhvaniApp:
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = DhvaniApp(root)
+    app = SonicLitApp(root)
     root.mainloop()

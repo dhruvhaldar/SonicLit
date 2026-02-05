@@ -1,9 +1,9 @@
 import tkinter as tk
-from dhvani.gui.desktop.app import DhvaniApp
+from soniclit.gui.desktop.app import SonicLitApp
 
 def main():
     root = tk.Tk()
-    app = DhvaniApp(root)
+    app = SonicLitApp(root)
     root.mainloop()
 
 if __name__ == "__main__":

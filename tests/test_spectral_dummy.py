@@ -3,7 +3,7 @@ import os
 import pandas as pd
 import numpy as np
 import tempfile
-from dhvani import spectral_analysis as sa
+from soniclit import spectral_analysis as sa
 from tests.generate_dummy_data import generate_signal_data
 
 def test_spectral_analysis_with_dummy_data():

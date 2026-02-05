@@ -15,25 +15,20 @@ requires = ["pdm.backend",
 build-backend = "pdm.backend"
 
 [project]
-name = "dhvani"
-#version = "1.0.0rc1"
-dynamic = ["version"]
+name = "soniclit"
+version = "1.0"
 authors = [
-	{name ="Athreya Ballapur Jayasimha", email="athreya@sankhyasutralabs.com"},
-	{name ="Snehasis Chowdhury", email="snehasis@sankhyasutralabs.com"},
+	{name ="Dhruv Haldar"},
 ]
-description = "A package for signal processing and advanced aeroacoustics modules"
+description = "A modern aeroacoustics analysis platform with Streamlit visualization"
 readme = "README.md"
 requires-python = ">=3.8"
 classifiers = [
 	"Programming Language :: Python :: 3",
 	"Operating System :: OS Independent",
+	"License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
 ]
-
-[project.urls]
-Homepage = "https://code.sankhyasutralabs.com/sslabs/cross-vertical/pre-post-libraries/dhvani"
-Issues = "https://code.sankhyasutralabs.com/sslabs/cross-vertical/pre-post-libraries/dhvani/-/issues/"
 
 [tool.pdm.version]
 source = "file"
-path = "src/dhvani/__init__.py"
+path = "src/soniclit/__init__.py"

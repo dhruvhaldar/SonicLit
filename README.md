@@ -1,10 +1,10 @@
-# Dhvani
+# SonicLit
 
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/dhruvhaldar/dhvani)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/dhruvhaldar/soniclit)
 [![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-**Dhvani** is a lightweight Python library for aeroacoustics and signal processing, designed to serve as a post-processing toolkit for computational fluid dynamics (CFD) solvers.
+**SonicLit** is a lightweight Python library for aeroacoustics and signal processing, designed to serve as a post-processing toolkit for computational fluid dynamics (CFD) solvers.
 
 ## Features
 
@@ -23,7 +23,7 @@
 
 ## Installation
 
-It is recommended to install Dhvani in a virtual environment.
+It is recommended to install SonicLit in a virtual environment.
 
 ```bash
 # Create venv
@@ -43,7 +43,7 @@ pip install streamlit
 
 ### Graphical User Interfaces (GUI)
 
-Dhvani comes with two GUIs for ease of use.
+SonicLit comes with two GUIs for ease of use.
 
 #### 1. Desktop App
 Run the local desktop application:
@@ -56,18 +56,18 @@ Run the web dashboard (accessible via browser):
 ```bash
 ./scripts/run_web.sh
 # OR
-streamlit run src/dhvani/gui/web/app.py
+streamlit run src/soniclit/gui/web/app.py
 ```
 
 See the [GUI User Manual](docs/gui_manual.md) for detailed instructions.
 
 ### Library Usage
 
-You can also use Dhvani as a library in your Python scripts:
+You can also use SonicLit as a library in your Python scripts:
 
 ```python
-import dhvani.fwh as fwh
-import dhvani.spectral_analysis as sa
+import soniclit.fwh as fwh
+import soniclit.spectral_analysis as sa
 
 # Calculate spectrum
 freq, df, psd = sa.fft_spectrum(time_array, pressure_array)

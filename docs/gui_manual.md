@@ -1,6 +1,6 @@
 # GUI User Manual
 
-Dhvani provides two graphical user interfaces (GUIs) to interact with the library's features without writing code: a **Desktop App** (Tkinter) and a **Web App** (Streamlit).
+SonicLit provides two graphical user interfaces (GUIs) to interact with the library's features without writing code: a **Desktop App** (Tkinter) and a **Web App** (Streamlit).
 
 ## 1. Desktop Application
 
@@ -56,7 +56,7 @@ To launch the web GUI, run:
 ```
 Or directly via Streamlit:
 ```bash
-streamlit run src/dhvani/gui/web/app.py
+streamlit run src/soniclit/gui/web/app.py
 ```
 
 ### FWH Solver Tab

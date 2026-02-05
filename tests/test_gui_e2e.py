@@ -4,7 +4,7 @@ from tkinter import messagebox
 import os
 import shutil
 from unittest.mock import patch, MagicMock
-from dhvani.gui.desktop.app import DhvaniApp
+from soniclit.gui.desktop.app import SonicLitApp
 from tests.generate_dummy_data import generate_fwh_data, generate_signal_data
 
 class TestGuiE2E(unittest.TestCase):
@@ -37,7 +37,7 @@ class TestGuiE2E(unittest.TestCase):
         self.mock_showwarning = self.patcher_warning.start()
 
         self.root = tk.Tk()
-        self.app = DhvaniApp(self.root)
+        self.app = SonicLitApp(self.root)
         self.root.update()
 
     def tearDown(self):

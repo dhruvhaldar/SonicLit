@@ -3,9 +3,9 @@
 ## Project Structure
 
 ```
-dhvani/
+soniclit/
 ├── src/
-│   └── dhvani/
+│   └── soniclit/
 │       ├── fwh.py                 # FWH Solver core logic
 │       ├── spectral_analysis.py   # Signal processing library
 │       └── gui/

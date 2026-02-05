@@ -1,4 +1,4 @@
 #!/bin/bash
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
-streamlit run src/dhvani/gui/web/app.py
+streamlit run src/soniclit/gui/web/app.py

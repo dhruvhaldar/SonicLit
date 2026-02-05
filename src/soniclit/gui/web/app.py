@@ -8,13 +8,13 @@ import zipfile
 import ast
 import tempfile
 
-# Import Dhvani modules
-import dhvani.fwh as fwh
-import dhvani.spectral_analysis as sa
+# Import SonicLit modules
+import soniclit.fwh as fwh
+import soniclit.spectral_analysis as sa
 
-st.set_page_config(page_title="Dhvani Web GUI", layout="wide")
+st.set_page_config(page_title="SonicLit Web GUI", layout="wide")
 
-st.title("Dhvani: Aeroacoustics & Signal Processing")
+st.title("SonicLit: Aeroacoustics & Signal Processing")
 
 tab_fwh, tab_spectral = st.tabs(["FWH Solver", "Spectral Analysis"])
 

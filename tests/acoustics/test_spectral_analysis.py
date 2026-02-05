@@ -5,7 +5,7 @@ import numpy as np
 import scipy.signal as signal
 import pandas as pd
 
-from dhvani.spectral_analysis import auto_corr, coherence, coherence_fft, cross_corr, cross_spectrum, cross_spectrum_fft, fft_spectrum, next_greater_power_of_2, sampling_freq, welch_spectrum
+from soniclit.spectral_analysis import auto_corr, coherence, coherence_fft, cross_corr, cross_spectrum, cross_spectrum_fft, fft_spectrum, next_greater_power_of_2, sampling_freq, welch_spectrum
 
 """
 FFT - Fast Fourier Transform
