@@ -32,14 +32,14 @@ with tab_fwh:
         # We will ask user to upload a ZIP file containing these.
         uploaded_surf_zip = st.file_uploader("Upload Surface Data (ZIP)", type="zip", help="Zip file should contain surface CSVs (Avg.csv, 0.csv, 1.csv...)")
 
-        obs_loc_str = st.text_input("Observer Locations (e.g. [[0,0,10]])", value="[[0.0, 0.0, 1.0]]")
+        obs_loc_str = st.text_input("Observer Locations (e.g. [[0,0,10]])", value="[[0.0, 0.0, 1.0]]", help="List of coordinates [x,y,z]. Example: [[0, 0, 10], [0, 10, 10]]")
         dt_val = st.number_input("Time Step (dt)", value=0.01, format="%.4f")
         steps_val = st.number_input("Number of Steps", value=10, step=1)
-        ma_str = st.text_input("Mach Number (e.g. [0.1, 0, 0])", value="[0.0, 0.0, 0.0]")
+        ma_str = st.text_input("Mach Number (e.g. [0.1, 0, 0])", value="[0.0, 0.0, 0.0]", help="Mach vector [Mx, My, Mz]. Example: [0.1, 0.0, 0.0]")
         temp_val = st.number_input("Temperature (K)", value=298.0)
         perm_val = st.checkbox("Permeable Surface", value=False)
 
-        run_btn = st.button("Run FWH Solver")
+        run_btn = st.button("Run FWH Solver", type="primary")
 
     with col2:
         st.subheader("Results")
@@ -125,7 +125,7 @@ with tab_spectral:
     col1, col2 = st.columns([1, 1])
 
     with col1:
-        uploaded_sig = st.file_uploader("Upload Signal CSV", type="csv")
+        uploaded_sig = st.file_uploader("Upload Signal CSV", type="csv", help="CSV file with time and signal columns.")
 
         if uploaded_sig:
             df = pd.read_csv(uploaded_sig)
@@ -170,3 +170,7 @@ with tab_spectral:
 
              except Exception as e:
                  st.error(f"Error: {e}")
+        elif not uploaded_sig:
+             st.info("👋 Upload a CSV file on the left to get started with spectral analysis.")
+        else:
+             st.info("👈 Configure parameters and click 'Plot Spectrum' to see results here.")
