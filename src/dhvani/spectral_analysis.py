@@ -120,7 +120,7 @@ def fft_spectrum(time, sig, save_output : bool = False, out_dir : str = "", db_s
     
     df = fs/len(time)   # bin size
     
-    sig -= np.mean(sig) # mean-removed part of the signal
+    sig = sig - np.mean(sig) # mean-removed part of the signal
     
     sig_fft = np.fft.rfft(sig) # Fourier-transformed signal, real part only
     
@@ -262,7 +262,7 @@ def auto_corr(sig, save_output : bool = False, out_dir : str = "", normalised : 
     >>> acorr, acorr_lags = auto_corr(pres_signal, save_output=True, out_dir="./results/nearfield_correlations")
 
     """
-    sig -= np.mean(sig)
+    sig = sig - np.mean(sig)
     
     acorr = signal.correlate(sig, sig, mode='full', method='auto')
     acorr = acorr[acorr.size//2:]
@@ -318,8 +318,8 @@ def cross_corr(sig1, sig2, mode : str = 'full', save_output : bool = False, out_
 
 
     """
-    sig1 -= np.mean(sig1)
-    sig2 -= np.mean(sig2)
+    sig1 = sig1 - np.mean(sig1)
+    sig2 = sig2 - np.mean(sig2)
     
     xcorr = signal.correlate(sig1, sig2, mode=mode, method='auto')
     
@@ -514,11 +514,11 @@ def cross_spectrum_fft(time1, sig1, time2, sig2, save_output : bool = False, out
         return
     
     freq1 = np.fft.rfftfreq(len(time1), 1/fs1) # discrete central frequencies of the FFT bins
-    sig1 -= np.mean(sig1) # mean-removed part of the signal
+    sig1 = sig1 - np.mean(sig1) # mean-removed part of the signal
     sig1_fft = np.fft.rfft(sig1) # Fourier-transformed signal, real part only
     
     #freq2 = np.fft.rfft(time2, 1/fs2) # discrete central frequencies of the FFT bins
-    sig2 -= np.mean(sig2) # mean-removed part of the signal
+    sig2 = sig2 - np.mean(sig2) # mean-removed part of the signal
     sig2_fft = np.fft.rfft(sig2)
     
     if scale_spectrum == True:

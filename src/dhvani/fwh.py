@@ -2,11 +2,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from time import time
-from mpi4py import MPI
-
-comm = MPI.COMM_WORLD
-nproc = comm.Get_size()
-rank = comm.Get_rank()
+try:
+    from mpi4py import MPI
+    comm = MPI.COMM_WORLD
+    nproc = comm.Get_size()
+    rank = comm.Get_rank()
+    MPI_AVAILABLE = True
+except (ImportError, RuntimeError):
+    MPI = None
+    comm = None
+    nproc = 1
+    rank = 0
+    MPI_AVAILABLE = False
 
 #Function for cubic spline interpolation
 def cubicSpline(w,f0,f1,f2,f3):
@@ -55,6 +62,9 @@ def Serial_source(surf_file : str, pre, p0, rho0, c0, Ma, f, perm):
 
 #Parallel Implementation
 def Parallel_source(surf_file : str, pre, p0, rho0, c0, Ma, f, perm):
+
+	if not MPI_AVAILABLE:
+		raise RuntimeError("MPI is not available. Please install mpi4py and an MPI implementation to use parallel features.")
 
 	if perm == True:
 		surf = pd.read_csv(surf_file, usecols = range(8,14), names = ['rho','u1','u2','u3','T','p'])
@@ -307,157 +317,158 @@ def stationary_serial(surf_file : str,  out_file : str, obs_loc : list, t_src : 
 #Parallel Implementation
 def stationary_parallel(surf_file : str,  out_file : str, obs_loc : list, t_src : list, Ma : list, perm : bool, write : bool = True, Ta : float = 298, gamma : float = 1.4, MW : float = 28.97):
 
+	if not MPI_AVAILABLE:
+		raise RuntimeError("MPI is not available. Please install mpi4py and an MPI implementation to use parallel features.")
+
+	Runiv = 8.314 #Universal gas constant in J/mol . K
+	Ma = np.array(Ma)
+	t_src = np.array(t_src)
+	dt = t_src[1]-t_src[0]
+	c0 = np.sqrt(gamma*Runiv*1e3*Ta/MW)
 	
-    	Runiv = 8.314 #Universal gas constant in J/mol . K
-    	Ma = np.array(Ma)
-    	t_src = np.array(t_src)
-    	dt = t_src[1]-t_src[0]
-    	c0 = np.sqrt(gamma*Runiv*1e3*Ta/MW)
-    	
-    	#Preprocessing
-    	df_pre = pd.read_csv(surf_file+'0.csv', usecols = range(7), names = ['y1','y2','y3','n1','n2','n3','dS'])
-    	filt = df_pre['dS']!=0 #key to Filter rows with on-zero area
-    	df_pre = df_pre[filt]
-    	df_pre.reset_index(drop=True)
-    	
-    	
-    	beta = np.sqrt(1-Ma[0]**2-Ma[1]**2-Ma[2]**2)
-    	
-    	p_mean = pd.read_csv(surf_file+'Avg.csv', usecols = range(13,14), names = ['p'])
-    	p_mean = p_mean[filt].reset_index(drop=True)
-    	rho_mean = pd.read_csv(surf_file+'Avg.csv', usecols = range(8,9), names = ['rho'])
-    	rho_mean = rho_mean[filt].reset_index(drop=True)	
-    	p0 = p_mean.to_numpy()[:,0]
-    	rho0 = rho_mean.to_numpy()[:,0]
-    	
-    	for idx, xo in enumerate(obs_loc):
-    		
-    		#calculation of time independent quantities
-    		Mr0 = Ma[0]*(xo[0]-df_pre['y1'])+Ma[1]*(xo[1]-df_pre['y2'])+Ma[2]*(xo[2]-df_pre['y3'])
-    		R0 = np.sqrt((xo[0]-df_pre['y1'])**2+(xo[1]-df_pre['y2'])**2+(xo[2]-df_pre['y3'])**2)
-    		
-    		# Calculate R - effective acoustic distance
-    		Rstar = np.sqrt(Mr0**2+(beta*R0)**2)
-    		R = (-Mr0+Rstar)/(beta**2)
-    	
-    		# Radiation vector
-    		df_pre['r1'] = (-Ma[0]*R + (xo[0]-df_pre['y1']))/R
-    		df_pre['r2'] = (-Ma[1]*R + (xo[1]-df_pre['y2']))/R
-    		df_pre['r3'] = (-Ma[2]*R + (xo[2]-df_pre['y3']))/R
-    		Mr = -Ma[0]*df_pre['r1'] -Ma[1]*df_pre['r2'] -Ma[2]*df_pre['r3'] 
-    		
-    		tau = np.array(R/c0) #travelling time of sound from all sources
-    		t_o = t_src+min(tau) #observer times 
-    		tau_star = tau-min(tau)
-    		w = (tau_star%dt)/dt
-    		j_star = np.array([int(k//dt) for k in tau_star])
-    		
-    		t_range = [int((max(tau)-min(tau))//dt)+2,len(t_o)-1]
-    		p_key = np.zeros_like(t_o)
-    		p_key[t_range[0]:t_range[1]] = 1
-    		
-    		
-    		D = (max(j_star)-1)*(max(j_star)>1) #number of void elements to be added at end for satisfying j_adv within range
-    		p_acous = np.zeros(len(t_o)+D)
-    		count = np.zeros(len(t_o)+D)
-    		
-    		src_t0 = Parallel_source(surf_file+'0.csv', df_pre, p0, rho0, c0, Ma, filt, perm)
-    		src_t1 = Parallel_source(surf_file+'1.csv', df_pre, p0, rho0, c0, Ma, filt, perm)
-    		src_t2 = Parallel_source(surf_file+'2.csv', df_pre, p0, rho0, c0, Ma, filt, perm)
-    		
-    		
-    		for j in range(1,len(t_src)-2):
-    			j_adv = j+j_star+1 #advanced time step
-    			j_cond = (j_adv >= t_range[0])*(j_adv < t_range[1])
-    			
-    			p_act =np.zeros(max(j_star)+1)
-    			n_elm = np.zeros(max(j_star)+1)
-    			src_t3 = Parallel_source(surf_file+str(j+2)+'.csv', df_pre, p0, rho0, c0, Ma, filt, perm)
-    			Qndot1 = (-src_t0['Qn']+src_t2['Qn'])/(2*dt)
-    			Qn1 = src_t1['Qn']
-    			Qndot2 = (-src_t1['Qn']+src_t3['Qn'])/(2*dt)
-    			Qn2 = src_t2['Qn']
-    			Lrdot1 = (-src_t0['Lr']+src_t2['Lr'])/(2*dt)
-    			Lr1 = src_t1['Lr']
-    			Lm1 = src_t1['Lm']
-    			Lrdot2 = (-src_t1['Lr']+src_t3['Lr'])/(2*dt)
-    			Lr2 = src_t2['Lr']
-    			Lm2 = src_t2['Lm']
-    			Qn = cubicSpline(w,src_t0['Qn'],src_t1['Qn'],src_t2['Qn'],src_t3['Qn'])
-    			Qndot = (1-w)*Qndot2+w*Qndot1
-    			Lr = cubicSpline(w,src_t0['Lr'],src_t1['Lr'],src_t2['Lr'],src_t3['Lr'])
-    			Lrdot = (1-w)*Lrdot2+w*Lrdot1
-    			Lm = cubicSpline(w,src_t0['Lm'],src_t1['Lm'],src_t2['Lm'],src_t3['Lm'])
-    			
-    			pt1 = (Qndot/(R*(1-Mr)**2))*df_pre['dS']
-    			pt2 = ((Qn*c0*(Mr-sum(Ma**2)))/(R**2*(1-Mr)**3))*df_pre['dS']
-    			# Thickness component
-    			pt = (pt1 + pt2)/(4*np.pi)
-    			
-    			pq1 =(1/c0)*(Lrdot/(R*(1-Mr)**2))*df_pre['dS']
-    			pq2 = ((Lr-Lm)/(R**2*(1-Mr)**2))*df_pre['dS']
-    			pq3 = ((Lr*(Mr-sum(Ma**2)))/(R**2*(1-Mr)**3))*df_pre['dS']
-    			
-    			# Loading component
-    			pq = (pq1+pq2+pq3)/(4*np.pi)
-    			p = np.array(pt+pq)
-    			p *= j_cond
-
-    			n_local = int(len(p)/nproc)
-    			ave, res = divmod(p.size, nproc)
-    			c = [ave + 1 if f < res else ave for f in range(nproc)]
-    			c = np.array(c)
-    			index0 = [sum(c[:i]) for i in range(len(c))]
-    				 
-    			Psplit = [p[index0[i]:index0[i]+c[i]] for i in range(nproc)]
-    			Jsplit = [j_star[index0[i]:index0[i]+c[i]] for i in range(nproc)]
-    			cond = [j_cond[index0[i]:index0[i]+c[i]] for i in range(nproc)]
-    			
-    			Psplit = comm.scatter(Psplit, root=0)
-    			Jsplit = comm.scatter(Jsplit, root=0)
-    			cond = comm.scatter(cond, root=0)
-    			p_act = comm.bcast(p_act, root=0)
-    			n_elm = comm.bcast(n_elm, root=0)
-    			#j_star = comm.bcast(j_star, root=0)
-    			
-    			for i in range(len(Jsplit)):
-    				
-    				p_act[Jsplit[i]] += Psplit[i]
-    				n_elm[Jsplit[i]] += 1*cond[i]
-    			
-    			
-    			p_act = comm.gather(p_act, root=0)
-    			n_elm = comm.gather(n_elm, root=0)
-    			
-    			
-    			if rank == 0:
-    				
-    				p_acous[min(j_adv):max(j_adv)+1] += sum(p_act) 
-    				count[min(j_adv):max(j_adv)+1] += sum(n_elm) 
-
-    				src_t0 = src_t1.copy()
-    				src_t1 = src_t2.copy()
-    				src_t2 = src_t3.copy()
-    		
-    		if rank == 0:
-    			fig, ax = plt.subplots( nrows=1, ncols=1, figsize = [12,8]  )  # create figure & 1 axis
-    			ax.plot(t_o[t_range[0]:t_range[1]], p_acous[t_range[0]:t_range[1]],'b')
-    			plt.title('Pressure time history at location '+str(xo))
-    			ax.set_xlabel('time (sec)')
-    			ax.set_ylabel("$p'$ (Pa)")
-    			fig.savefig(out_file + str(idx)+ '.png')   # save the figure to file
-    			plt.close(fig) 
-    			if write:
-    				p_df = pd.DataFrame({"t_o": t_o[t_range[0]:t_range[1]], "p'": p_acous[t_range[0]:t_range[1]]})
-    				p_df.to_csv(out_file + str(idx)+ '.csv', index=False)
-    				print("Far-field acoustic pressure for location " + str(xo) + " has been computed successfully. Output CSV file printed as " + out_file  + str(idx) +  ".csv.")
-    	if rank == 0 :
-    		if write:
-    			return "All calculations successfully completed! Far-field acoustic pressure for " + str(len(obs_loc)) + " observer location(s) saved to corresponding PNG images and CSV file(s)"
-    		else:
-    			return "All calculations successfully completed! Far-field acoustic pressure for " + str(len(obs_loc)) + " observer location(s) saved to corresponding PNG images "
-    		
+	#Preprocessing
+	df_pre = pd.read_csv(surf_file+'0.csv', usecols = range(7), names = ['y1','y2','y3','n1','n2','n3','dS'])
+	filt = df_pre['dS']!=0 #key to Filter rows with on-zero area
+	df_pre = df_pre[filt]
+	df_pre.reset_index(drop=True)
 
 
-    		
+	beta = np.sqrt(1-Ma[0]**2-Ma[1]**2-Ma[2]**2)
+
+	p_mean = pd.read_csv(surf_file+'Avg.csv', usecols = range(13,14), names = ['p'])
+	p_mean = p_mean[filt].reset_index(drop=True)
+	rho_mean = pd.read_csv(surf_file+'Avg.csv', usecols = range(8,9), names = ['rho'])
+	rho_mean = rho_mean[filt].reset_index(drop=True)
+	p0 = p_mean.to_numpy()[:,0]
+	rho0 = rho_mean.to_numpy()[:,0]
+
+	for idx, xo in enumerate(obs_loc):
+
+		#calculation of time independent quantities
+		Mr0 = Ma[0]*(xo[0]-df_pre['y1'])+Ma[1]*(xo[1]-df_pre['y2'])+Ma[2]*(xo[2]-df_pre['y3'])
+		R0 = np.sqrt((xo[0]-df_pre['y1'])**2+(xo[1]-df_pre['y2'])**2+(xo[2]-df_pre['y3'])**2)
+
+		# Calculate R - effective acoustic distance
+		Rstar = np.sqrt(Mr0**2+(beta*R0)**2)
+		R = (-Mr0+Rstar)/(beta**2)
+
+		# Radiation vector
+		df_pre['r1'] = (-Ma[0]*R + (xo[0]-df_pre['y1']))/R
+		df_pre['r2'] = (-Ma[1]*R + (xo[1]-df_pre['y2']))/R
+		df_pre['r3'] = (-Ma[2]*R + (xo[2]-df_pre['y3']))/R
+		Mr = -Ma[0]*df_pre['r1'] -Ma[1]*df_pre['r2'] -Ma[2]*df_pre['r3']
+
+		tau = np.array(R/c0) #travelling time of sound from all sources
+		t_o = t_src+min(tau) #observer times
+		tau_star = tau-min(tau)
+		w = (tau_star%dt)/dt
+		j_star = np.array([int(k//dt) for k in tau_star])
+
+		t_range = [int((max(tau)-min(tau))//dt)+2,len(t_o)-1]
+		p_key = np.zeros_like(t_o)
+		p_key[t_range[0]:t_range[1]] = 1
+
+
+		D = (max(j_star)-1)*(max(j_star)>1) #number of void elements to be added at end for satisfying j_adv within range
+		p_acous = np.zeros(len(t_o)+D)
+		count = np.zeros(len(t_o)+D)
+
+		src_t0 = Parallel_source(surf_file+'0.csv', df_pre, p0, rho0, c0, Ma, filt, perm)
+		src_t1 = Parallel_source(surf_file+'1.csv', df_pre, p0, rho0, c0, Ma, filt, perm)
+		src_t2 = Parallel_source(surf_file+'2.csv', df_pre, p0, rho0, c0, Ma, filt, perm)
+
+
+		for j in range(1,len(t_src)-2):
+			j_adv = j+j_star+1 #advanced time step
+			j_cond = (j_adv >= t_range[0])*(j_adv < t_range[1])
+
+			p_act =np.zeros(max(j_star)+1)
+			n_elm = np.zeros(max(j_star)+1)
+			src_t3 = Parallel_source(surf_file+str(j+2)+'.csv', df_pre, p0, rho0, c0, Ma, filt, perm)
+			Qndot1 = (-src_t0['Qn']+src_t2['Qn'])/(2*dt)
+			Qn1 = src_t1['Qn']
+			Qndot2 = (-src_t1['Qn']+src_t3['Qn'])/(2*dt)
+			Qn2 = src_t2['Qn']
+			Lrdot1 = (-src_t0['Lr']+src_t2['Lr'])/(2*dt)
+			Lr1 = src_t1['Lr']
+			Lm1 = src_t1['Lm']
+			Lrdot2 = (-src_t1['Lr']+src_t3['Lr'])/(2*dt)
+			Lr2 = src_t2['Lr']
+			Lm2 = src_t2['Lm']
+			Qn = cubicSpline(w,src_t0['Qn'],src_t1['Qn'],src_t2['Qn'],src_t3['Qn'])
+			Qndot = (1-w)*Qndot2+w*Qndot1
+			Lr = cubicSpline(w,src_t0['Lr'],src_t1['Lr'],src_t2['Lr'],src_t3['Lr'])
+			Lrdot = (1-w)*Lrdot2+w*Lrdot1
+			Lm = cubicSpline(w,src_t0['Lm'],src_t1['Lm'],src_t2['Lm'],src_t3['Lm'])
+
+			pt1 = (Qndot/(R*(1-Mr)**2))*df_pre['dS']
+			pt2 = ((Qn*c0*(Mr-sum(Ma**2)))/(R**2*(1-Mr)**3))*df_pre['dS']
+			# Thickness component
+			pt = (pt1 + pt2)/(4*np.pi)
+
+			pq1 =(1/c0)*(Lrdot/(R*(1-Mr)**2))*df_pre['dS']
+			pq2 = ((Lr-Lm)/(R**2*(1-Mr)**2))*df_pre['dS']
+			pq3 = ((Lr*(Mr-sum(Ma**2)))/(R**2*(1-Mr)**3))*df_pre['dS']
+
+			# Loading component
+			pq = (pq1+pq2+pq3)/(4*np.pi)
+			p = np.array(pt+pq)
+			p *= j_cond
+
+			n_local = int(len(p)/nproc)
+			ave, res = divmod(p.size, nproc)
+			c = [ave + 1 if f < res else ave for f in range(nproc)]
+			c = np.array(c)
+			index0 = [sum(c[:i]) for i in range(len(c))]
+
+			Psplit = [p[index0[i]:index0[i]+c[i]] for i in range(nproc)]
+			Jsplit = [j_star[index0[i]:index0[i]+c[i]] for i in range(nproc)]
+			cond = [j_cond[index0[i]:index0[i]+c[i]] for i in range(nproc)]
+
+			Psplit = comm.scatter(Psplit, root=0)
+			Jsplit = comm.scatter(Jsplit, root=0)
+			cond = comm.scatter(cond, root=0)
+			p_act = comm.bcast(p_act, root=0)
+			n_elm = comm.bcast(n_elm, root=0)
+			#j_star = comm.bcast(j_star, root=0)
+
+			for i in range(len(Jsplit)):
+
+				p_act[Jsplit[i]] += Psplit[i]
+				n_elm[Jsplit[i]] += 1*cond[i]
+
+
+			p_act = comm.gather(p_act, root=0)
+			n_elm = comm.gather(n_elm, root=0)
+
+
+			if rank == 0:
+
+				p_acous[min(j_adv):max(j_adv)+1] += sum(p_act)
+				count[min(j_adv):max(j_adv)+1] += sum(n_elm)
+
+				src_t0 = src_t1.copy()
+				src_t1 = src_t2.copy()
+				src_t2 = src_t3.copy()
+
+		if rank == 0:
+			fig, ax = plt.subplots( nrows=1, ncols=1, figsize = [12,8]  )  # create figure & 1 axis
+			ax.plot(t_o[t_range[0]:t_range[1]], p_acous[t_range[0]:t_range[1]],'b')
+			plt.title('Pressure time history at location '+str(xo))
+			ax.set_xlabel('time (sec)')
+			ax.set_ylabel("$p'$ (Pa)")
+			fig.savefig(out_file + str(idx)+ '.png')   # save the figure to file
+			plt.close(fig)
+			if write:
+				p_df = pd.DataFrame({"t_o": t_o[t_range[0]:t_range[1]], "p'": p_acous[t_range[0]:t_range[1]]})
+				p_df.to_csv(out_file + str(idx)+ '.csv', index=False)
+				print("Far-field acoustic pressure for location " + str(xo) + " has been computed successfully. Output CSV file printed as " + out_file  + str(idx) +  ".csv.")
+	if rank == 0 :
+		if write:
+			return "All calculations successfully completed! Far-field acoustic pressure for " + str(len(obs_loc)) + " observer location(s) saved to corresponding PNG images and CSV file(s)"
+		else:
+			return "All calculations successfully completed! Far-field acoustic pressure for " + str(len(obs_loc)) + " observer location(s) saved to corresponding PNG images "
+
+
+
 
