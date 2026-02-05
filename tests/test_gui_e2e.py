@@ -4,7 +4,7 @@ from tkinter import messagebox
 import os
 import shutil
 from unittest.mock import patch, MagicMock
-from src.dhvani_app import DhvaniApp
+from dhvani.gui.desktop.app import DhvaniApp
 from tests.generate_dummy_data import generate_fwh_data, generate_signal_data
 
 class TestGuiE2E(unittest.TestCase):

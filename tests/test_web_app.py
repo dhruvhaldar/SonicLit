@@ -35,7 +35,7 @@ class TestWebApp(unittest.TestCase):
             shutil.rmtree(cls.test_dir)
 
     def test_fwh_tab_load(self):
-        at = AppTest.from_file("src/dhvani_web.py")
+        at = AppTest.from_file("src/dhvani/gui/web/app.py")
         at.run(timeout=10)
         self.assertFalse(at.exception)
         self.assertEqual(at.title[0].value, "Dhvani: Aeroacoustics & Signal Processing")
@@ -44,7 +44,7 @@ class TestWebApp(unittest.TestCase):
     # depending on the version. We will test that the app loads and elements exist.
 
     def test_spectral_tab_interaction(self):
-        at = AppTest.from_file("src/dhvani_web.py")
+        at = AppTest.from_file("src/dhvani/gui/web/app.py")
         at.run(timeout=10)
 
         # Switch tab (tabs are not directly clickable in AppTest usually, we access elements by key or structure)
