@@ -10,6 +10,7 @@ requires = ["pdm.backend",
 	"pytest",
 	"mpi4py",
 	"pyvista",
+	"streamlit",
 ]
 build-backend = "pdm.backend"
 
