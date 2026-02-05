@@ -9,8 +9,8 @@ import ast
 import tempfile
 
 # Import SonicLit modules
-import soniclit.fwh as fwh
-import soniclit.spectral_analysis as sa
+import soniclit.fwh_solver as fwh
+import soniclit.signal_processing as sa
 
 st.set_page_config(page_title="SonicLit Web GUI", layout="wide")
 

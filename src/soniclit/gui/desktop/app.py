@@ -10,8 +10,8 @@ import os
 import ast
 
 # Import SonicLit modules
-import soniclit.fwh as fwh
-import soniclit.spectral_analysis as sa
+import soniclit.fwh_solver as fwh
+import soniclit.signal_processing as sa
 
 class SonicLitApp:
     def __init__(self, root):

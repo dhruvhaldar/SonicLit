@@ -1,6 +1,6 @@
-from . import fwh
-from . import modes
-from . import sound_from_pressure
-from . import spectral_analysis
+from . import fwh_solver
+from . import cavity_modes
+from . import audio_generator
+from . import signal_processing
 
 __version__ = "1.0"
