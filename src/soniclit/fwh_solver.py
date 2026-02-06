@@ -69,15 +69,12 @@ def calculate_source_terms_serial(surf_file : str, preprocessed_data, ambient_pr
     """
     if is_permeable == True:
         surface_data = pd.read_csv(surf_file, usecols = range(8,14), names = ['density','velocity_x','velocity_y','velocity_z','temperature','pressure'])
-        read_time = time()
     else:
         surface_data = pd.read_csv(surf_file, usecols = range(13,14), names = ['pressure'])
-        read_time = time()
     
     preprocessed_data = preprocessed_data[['n1','n2','n3','r1','r2','r3']]
     
     surface_data = surface_data[f]
-    surface_data.reset_index(drop=True)
     U0 = speed_of_sound*mach_number
     surface_data['pressure'] = surface_data['pressure']-ambient_pressure
     
@@ -139,16 +136,13 @@ def calculate_source_terms_parallel(surf_file : str, preprocessed_data, ambient_
 
     if is_permeable == True:
         surface_data = pd.read_csv(surf_file, usecols = range(8,14), names = ['density','velocity_x','velocity_y','velocity_z','temperature','pressure'])
-        read_time = time()
     else:
         surface_data = pd.read_csv(surf_file, usecols = range(13,14), names = ['pressure'])
-        read_time = time()
     
     preprocessed_data = preprocessed_data[['n1','n2','n3','r1','r2','r3']].to_numpy()
     out = np.zeros([len(preprocessed_data),3])
     
     surface_data = surface_data[f]
-    surface_data.reset_index(drop=True)
     U0 = speed_of_sound*mach_number
     surface_data['pressure'] = surface_data['pressure']-ambient_pressure
     surface_data = surface_data.to_numpy()
@@ -271,7 +265,6 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
     	preprocessed_data = pd.read_csv(surf_file+'0.csv', usecols = range(7), names = ['y1','y2','y3','n1','n2','n3','dS'])
     	filt = preprocessed_data['dS']!=0 #key to Filter rows with on-zero area
     	preprocessed_data = preprocessed_data[filt]
-    	preprocessed_data.reset_index(drop=True)
     	
     	
     	beta = np.sqrt(1-mach_number[0]**2-mach_number[1]**2-mach_number[2]**2)
@@ -357,9 +350,8 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
     			p *= j_cond
     			
     			
-    			for i in range(len(j_star)):
-    				p_act[j_star[i]] += p.iloc[i]
-    				n_elm[j_star[i]] += 1*j_cond[i]
+			np.add.at(p_act, j_star, p.values)
+			np.add.at(n_elm, j_star, j_cond)
     				
     			acoustic_pressure[min(j_adv):max(j_adv)+1] += p_act
     			count[min(j_adv):max(j_adv)+1] += n_elm 
@@ -401,7 +393,6 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
 	preprocessed_data = pd.read_csv(surf_file+'0.csv', usecols = range(7), names = ['y1','y2','y3','n1','n2','n3','dS'])
 	filt = preprocessed_data['dS']!=0 #key to Filter rows with on-zero area
 	preprocessed_data = preprocessed_data[filt]
-	preprocessed_data.reset_index(drop=True)
 
 
 	beta = np.sqrt(1-mach_number[0]**2-mach_number[1]**2-mach_number[2]**2)
@@ -503,10 +494,8 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
 			n_elm = comm.bcast(n_elm, root=0)
 			#j_star = comm.bcast(j_star, root=0)
 
-			for i in range(len(Jsplit)):
-
-				p_act[Jsplit[i]] += Psplit[i]
-				n_elm[Jsplit[i]] += 1*cond[i]
+			np.add.at(p_act, Jsplit, Psplit)
+			np.add.at(n_elm, Jsplit, cond)
 
 
 			p_act = comm.gather(p_act, root=0)
