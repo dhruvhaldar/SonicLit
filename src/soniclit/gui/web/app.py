@@ -11,6 +11,7 @@ import tempfile
 # Import SonicLit modules
 import soniclit.fwh_solver as fwh
 import soniclit.signal_processing as sa
+from soniclit.utils import safe_extract_zip
 
 st.set_page_config(page_title="SonicLit Web GUI", layout="wide")
 
@@ -64,7 +65,7 @@ with tab_fwh:
 
                     # Extract ZIP
                     with zipfile.ZipFile(uploaded_surf_zip, 'r') as zip_ref:
-                        zip_ref.extractall(surf_dir)
+                        safe_extract_zip(zip_ref, surf_dir)
 
                     # Identify prefix
                     # We expect files like prefixAvg.csv, prefix0.csv
