@@ -18,7 +18,7 @@ except (ImportError, RuntimeError):
 #Function for cubic spline interpolation
 def cubic_spline(interpolation_weight, f0, f1, f2, f3):
     """
-    Performs cubic spline interpolation.
+    Performs cubic spline interpolation. Optimized using Horner's method.
 
     Parameters
     ----------
@@ -32,8 +32,30 @@ def cubic_spline(interpolation_weight, f0, f1, f2, f3):
     float
         Interpolated value.
     """
-    out = -(interpolation_weight*(1-interpolation_weight)*(1+interpolation_weight)/6)*f0 + (interpolation_weight*(1+interpolation_weight)*(2-interpolation_weight)/2)*f1 + ((1-interpolation_weight)*(1+interpolation_weight)*(2-interpolation_weight)/2)*f2 - (interpolation_weight*(1-interpolation_weight)*(2-interpolation_weight)/6)*f3
-    return out
+    w = interpolation_weight
+
+    # Intermediate terms to reduce operations
+    f1_minus_f3 = f1 - f3
+
+    # A6 = f0 - 3f1 + 3f2 - f3 = (f0 - f3) + 3(f2 - f1)
+    A6 = (f0 - f3) + 3.0*(f2 - f1)
+
+    # 3*B2 = 3*(f1 - 2f2 + f3)
+    B2_3 = 3.0 * (f1 - 2.0*f2 + f3)
+
+    # C6 = -f0 + 6f1 - 3f2 - 2f3 = 3(f1 - f3) - A6
+    C6 = 3.0 * f1_minus_f3 - A6
+
+    # Horner's method evaluation: out = (w * (C6 + w * (B2_3 + w * A6)) + 6f2) / 6
+    term = w * A6
+    term += B2_3
+    term *= w
+    term += C6
+    term *= w
+    term += 6.0 * f2
+    term *= (1.0/6.0)
+
+    return term
 
 
 #Functions for calculation of FWH source terms from surface pressure, mass and momentum flux data
