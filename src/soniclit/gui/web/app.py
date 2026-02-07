@@ -34,17 +34,19 @@ with tab_fwh:
         uploaded_surf_zip = st.file_uploader("Upload Surface Data (ZIP)", type="zip", help="Zip file should contain surface CSVs (Avg.csv, 0.csv, 1.csv...)")
 
         obs_loc_str = st.text_input("Observer Locations (e.g. [[0,0,10]])", value="[[0.0, 0.0, 1.0]]", help="List of coordinates [x,y,z]. Example: [[0, 0, 10], [0, 10, 10]]")
-        dt_val = st.number_input("Time Step (dt)", value=0.01, format="%.4f")
-        steps_val = st.number_input("Number of Steps", value=10, step=1)
+        dt_val = st.number_input("Time Step (dt)", value=0.01, format="%.4f", help="Simulation time step in seconds.")
+        steps_val = st.number_input("Number of Steps", value=10, step=1, help="Total number of time steps to process.")
         ma_str = st.text_input("Mach Number (e.g. [0.1, 0, 0])", value="[0.0, 0.0, 0.0]", help="Mach vector [Mx, My, Mz]. Example: [0.1, 0.0, 0.0]")
-        temp_val = st.number_input("Temperature (K)", value=298.0)
-        perm_val = st.checkbox("Permeable Surface", value=False)
+        temp_val = st.number_input("Temperature (K)", value=298.0, help="Ambient temperature in Kelvin (affects speed of sound).")
+        perm_val = st.checkbox("Permeable Surface", value=False, help="Enable if using a permeable integration surface.")
 
         run_btn = st.button("Run FWH Solver", type="primary")
 
     with col2:
         st.subheader("Results")
         result_container = st.container()
+        if not run_btn:
+             result_container.info("Configure parameters and run the solver to see results here.")
 
     if run_btn:
         if uploaded_surf_zip is None:
