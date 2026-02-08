@@ -277,6 +277,9 @@ def calculate_source_terms_parallel(surf_file : str, preprocessed_data, ambient_
 #Serial Implementation
 def stationary_serial(surf_file : str,  output_filename : str, observer_locations : list, source_times : list, mach_number : list, is_permeable : bool, write : bool = True, ambient_temperature : float = 298, gamma : float = 1.4, MW : float = 28.97):
 
+        if "://" in surf_file:
+            raise ValueError("Security: Remote file paths are not allowed.")
+
         Runiv = 8.314 #Universal gas constant in J/mol . K
         mach_number = np.array(mach_number)
         source_times = np.array(source_times)
@@ -401,6 +404,9 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
 
 #Parallel Implementation
 def stationary_parallel(surf_file : str,  output_filename : str, observer_locations : list, source_times : list, mach_number : list, is_permeable : bool, write : bool = True, ambient_temperature : float = 298, gamma : float = 1.4, MW : float = 28.97):
+
+    if "://" in surf_file:
+        raise ValueError("Security: Remote file paths are not allowed.")
 
     if not MPI_AVAILABLE:
         raise RuntimeError("MPI is not available. Please install mpi4py and an MPI implementation to use parallel features.")
