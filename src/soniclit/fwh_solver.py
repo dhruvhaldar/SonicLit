@@ -321,11 +321,10 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
             t_o = source_times+min(tau) #observer times
             tau_star = tau-min(tau)
             interpolation_weight = (tau_star%dt)/dt
-            j_star = np.array([int(k//dt) for k in tau_star])
+            # Optimized: Vectorized calculation instead of list comprehension
+            j_star = (tau_star // dt).astype(int)
 
             t_range = [int((max(tau)-min(tau))//dt)+2,len(t_o)-1]
-            p_key = np.zeros_like(t_o)
-            p_key[t_range[0]:t_range[1]] = 1
 
 
             D = (max(j_star)-1)*(max(j_star)>1) #number of void elements to be added at end for satisfying j_adv within range
@@ -452,11 +451,10 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
         t_o = source_times+min(tau) #observer times
         tau_star = tau-min(tau)
         interpolation_weight = (tau_star%dt)/dt
-        j_star = np.array([int(k//dt) for k in tau_star])
+        # Optimized: Vectorized calculation instead of list comprehension
+        j_star = (tau_star // dt).astype(int)
 
         t_range = [int((max(tau)-min(tau))//dt)+2,len(t_o)-1]
-        p_key = np.zeros_like(t_o)
-        p_key[t_range[0]:t_range[1]] = 1
 
 
         D = (max(j_star)-1)*(max(j_star)>1) #number of void elements to be added at end for satisfying j_adv within range
