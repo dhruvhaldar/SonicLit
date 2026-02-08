@@ -11,3 +11,8 @@
 2. Compression ratio limits.
 3. Symbolic link detection via `external_attr`.
 4. Use `extract()` instead of `extractall()` for granular control.
+
+## 2026-02-14 - SSRF in Pandas Library Functions
+**Vulnerability:** Found a Server-Side Request Forgery (SSRF) vulnerability in `soniclit.fwh_solver.stationary_serial`. The function blindly passed user-controlled `surf_file` paths to `pd.read_csv`. `pandas` supports URL protocols (http, https, ftp, s3) natively, allowing attackers to make the server fetch remote resources.
+**Learning:** Data science libraries like `pandas` often include powerful I/O features (like URL fetching) that are not secure by default when exposed to untrusted input. Library functions that take file paths as strings must treat them as potential URLs.
+**Prevention:** Validate file paths before passing them to `pd.read_csv` or similar functions. Explicitly block `://` or restrict inputs to local filesystem paths if remote access is not intended. Added a check `if "://" in surf_file: raise ValueError(...)`.
