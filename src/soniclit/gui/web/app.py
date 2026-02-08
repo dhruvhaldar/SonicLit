@@ -34,13 +34,40 @@ with tab_fwh:
         uploaded_surf_zip = st.file_uploader("Upload Surface Data (ZIP)", type="zip", help="Zip file should contain surface CSVs (Avg.csv, 0.csv, 1.csv...)")
 
         obs_loc_str = st.text_input("Observer Locations (e.g. [[0,0,10]])", value="[[0.0, 0.0, 1.0]]", help="List of coordinates [x,y,z]. Example: [[0, 0, 10], [0, 10, 10]]")
+
+        # Validation for obs_loc
+        obs_valid = True
+        try:
+            val = ast.literal_eval(obs_loc_str)
+            if not isinstance(val, (list, tuple)):
+                st.error("Observer locations must be a list of coordinates (e.g. [[0,0,10]]).")
+                obs_valid = False
+        except:
+            st.error("Invalid format. Use Python list syntax, e.g. [[0,0,10]]")
+            obs_valid = False
+
         dt_val = st.number_input("Time Step (dt)", value=0.01, format="%.4f", help="Simulation time step in seconds.")
         steps_val = st.number_input("Number of Steps", value=10, step=1, help="Total number of time steps to process.")
         ma_str = st.text_input("Mach Number (e.g. [0.1, 0, 0])", value="[0.0, 0.0, 0.0]", help="Mach vector [Mx, My, Mz]. Example: [0.1, 0.0, 0.0]")
+
+        # Validation for ma
+        ma_valid = True
+        try:
+            val = ast.literal_eval(ma_str)
+            if not isinstance(val, (list, tuple)):
+                 st.error("Mach Number must be a list (vector).")
+                 ma_valid = False
+            elif len(val) != 3:
+                 st.error("Mach Number must have 3 components [Mx, My, Mz].")
+                 ma_valid = False
+        except:
+            st.error("Invalid format. Use Python list syntax, e.g. [0.1, 0, 0]")
+            ma_valid = False
+
         temp_val = st.number_input("Temperature (K)", value=298.0, help="Ambient temperature in Kelvin (affects speed of sound).")
         perm_val = st.checkbox("Permeable Surface", value=False, help="Enable if using a permeable integration surface.")
 
-        run_btn = st.button("Run FWH Solver", type="primary")
+        run_btn = st.button("Run FWH Solver", type="primary", disabled=not (obs_valid and ma_valid))
 
     with col2:
         st.subheader("Results")
@@ -137,16 +164,16 @@ with tab_spectral:
             time_col = st.selectbox("Select Time Column", df.columns)
             sig_col = st.selectbox("Select Signal Column", [c for c in df.columns if c != time_col])
 
-            method = st.selectbox("Method", ["FFT", "Welch"])
+            method = st.selectbox("Method", ["FFT", "Welch"], help="Choose 'FFT' for standard spectrum or 'Welch' for smoothed periodogram.")
 
             if method == "Welch":
                 col_w1, col_w2 = st.columns(2)
                 with col_w1:
-                    chunks = st.number_input("Chunks", value=4, step=1, min_value=1)
+                    chunks = st.number_input("Chunks", value=4, step=1, min_value=1, help="Number of segments to split the signal into (higher = smoother but lower frequency resolution).")
                 with col_w2:
-                    overlap = st.number_input("Overlap", value=0.5, min_value=0.0, max_value=0.99)
+                    overlap = st.number_input("Overlap", value=0.5, min_value=0.0, max_value=0.99, help="Fraction of overlap between segments (typically 0.5 or 50%).")
 
-            plot_spec_btn = st.button("Plot Spectrum")
+            plot_spec_btn = st.button("Plot Spectrum", type="primary")
 
     with col2:
         if uploaded_sig and plot_spec_btn:
