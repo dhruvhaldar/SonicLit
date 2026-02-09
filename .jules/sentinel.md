@@ -16,3 +16,11 @@
 **Vulnerability:** Found a Server-Side Request Forgery (SSRF) vulnerability in `soniclit.fwh_solver.stationary_serial`. The function blindly passed user-controlled `surf_file` paths to `pd.read_csv`. `pandas` supports URL protocols (http, https, ftp, s3) natively, allowing attackers to make the server fetch remote resources.
 **Learning:** Data science libraries like `pandas` often include powerful I/O features (like URL fetching) that are not secure by default when exposed to untrusted input. Library functions that take file paths as strings must treat them as potential URLs.
 **Prevention:** Validate file paths before passing them to `pd.read_csv` or similar functions. Explicitly block `://` or restrict inputs to local filesystem paths if remote access is not intended. Added a check `if "://" in surf_file: raise ValueError(...)`.
+
+## 2026-02-09 - DoS Prevention in Streamlit Inputs
+**Vulnerability:** The Streamlit web app (`src/soniclit/gui/web/app.py`) allowed unlimited integer input for `steps_val` (Number of Steps) and `chunks`. An attacker could input a massive number (e.g., 10^9), causing the application to allocate huge arrays (Memory Exhaustion) or perform excessive computations (CPU Exhaustion), leading to a Denial of Service (DoS).
+**Learning:** Framework widgets like `st.number_input` do not enforce upper bounds by default unless `max_value` is specified. Even if specified, frontend validation can be bypassed. Backend logic must always clamp or validate inputs before using them in resource-intensive operations.
+**Prevention:**
+1. Explicitly set `min_value` and `max_value` on all numeric inputs.
+2. Add backend clamping logic (e.g., `val = min(val, LIMIT)`) immediately after receiving input.
+3. Validate the length and structure of complex inputs (e.g., lists parsed via `ast.literal_eval`) to prevent recursion or massive loops.

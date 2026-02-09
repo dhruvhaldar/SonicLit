@@ -2,6 +2,7 @@ import unittest
 import os
 import shutil
 import zipfile
+import time
 from streamlit.testing.v1 import AppTest
 from tests.generate_dummy_data import generate_fwh_data, generate_signal_data
 
@@ -53,6 +54,31 @@ class TestWebApp(unittest.TestCase):
         # We can't easily upload a file via AppTest in standard ways without complex mocking.
         # So we verify the initial state.
         self.assertFalse(at.exception)
+
+    def test_dos_prevention_steps_val(self):
+        """Test that setting a huge steps value doesn't crash the app or take forever (DoS)."""
+        at = AppTest.from_file("src/soniclit/gui/web/app.py")
+        at.run(timeout=10)
+
+        # Find steps input
+        steps_input = None
+        for widget in at.number_input:
+            if "Number of Steps" in widget.label:
+                steps_input = widget
+                break
+
+        self.assertIsNotNone(steps_input, "Could not find 'Number of Steps' input.")
+
+        # Attempt to set a huge value (10^8)
+        # Without backend clamping, this might cause OOM or long execution time if loop executed.
+        # (Though loop only executes on Run, we verified setting value is safe).
+        start_time = time.time()
+        at = steps_input.set_value(100000000).run(timeout=10)
+        duration = time.time() - start_time
+
+        self.assertFalse(at.exception)
+        # It should be fast because it shouldn't try to allocate anything huge
+        self.assertLess(duration, 5.0, "Setting huge value took too long, possible DoS/Resource Exhaustion")
 
 if __name__ == '__main__':
     unittest.main()
