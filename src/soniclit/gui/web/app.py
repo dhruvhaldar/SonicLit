@@ -42,12 +42,28 @@ with tab_fwh:
             if not isinstance(val, (list, tuple)):
                 st.error("Observer locations must be a list of coordinates (e.g. [[0,0,10]]).")
                 obs_valid = False
+            elif len(val) > 100:
+                st.error("Too many observer locations (max 100).")
+                obs_valid = False
+            else:
+                for item in val:
+                    if not isinstance(item, (list, tuple)) or len(item) != 3:
+                        st.error("Each observer location must be a list of 3 coordinates [x, y, z].")
+                        obs_valid = False
+                        break
+                    if not all(isinstance(x, (int, float)) for x in item):
+                        st.error("Coordinates must be numbers.")
+                        obs_valid = False
+                        break
         except:
             st.error("Invalid format. Use Python list syntax, e.g. [[0,0,10]]")
             obs_valid = False
 
         dt_val = st.number_input("Time Step (dt)", value=0.01, format="%.4f", help="Simulation time step in seconds.")
-        steps_val = st.number_input("Number of Steps", value=10, step=1, help="Total number of time steps to process.")
+        steps_val = st.number_input("Number of Steps", value=10, step=1, min_value=1, max_value=100000, help="Total number of time steps to process.")
+        # Security: Enforce backend limit to prevent DoS
+        steps_val = min(steps_val, 100000)
+
         ma_str = st.text_input("Mach Number (e.g. [0.1, 0, 0])", value="[0.0, 0.0, 0.0]", help="Mach vector [Mx, My, Mz]. Example: [0.1, 0.0, 0.0]")
 
         # Validation for ma
@@ -169,7 +185,8 @@ with tab_spectral:
             if method == "Welch":
                 col_w1, col_w2 = st.columns(2)
                 with col_w1:
-                    chunks = st.number_input("Chunks", value=4, step=1, min_value=1, help="Number of segments to split the signal into (higher = smoother but lower frequency resolution).")
+                    chunks = st.number_input("Chunks", value=4, step=1, min_value=1, max_value=1000, help="Number of segments to split the signal into (higher = smoother but lower frequency resolution).")
+                    chunks = min(chunks, 1000)
                 with col_w2:
                     overlap = st.number_input("Overlap", value=0.5, min_value=0.0, max_value=0.99, help="Fraction of overlap between segments (typically 0.5 or 50%).")
 
