@@ -173,10 +173,8 @@ with tab_spectral:
                 with col_w2:
                     overlap = st.number_input("Overlap", value=0.5, min_value=0.0, max_value=0.99, help="Fraction of overlap between segments (typically 0.5 or 50%).")
 
-            plot_spec_btn = st.button("Plot Spectrum", type="primary")
-
     with col2:
-        if uploaded_sig and plot_spec_btn:
+        if uploaded_sig:
              try:
                 time = df[time_col].values
                 sig = df[sig_col].values
@@ -200,7 +198,5 @@ with tab_spectral:
 
              except Exception as e:
                  st.error(f"Error: {e}")
-        elif not uploaded_sig:
-             st.info("👋 Upload a CSV file on the left to get started with spectral analysis.")
         else:
-             st.info("👈 Configure parameters and click 'Plot Spectrum' to see results here.")
+             st.info("👋 Upload a CSV file on the left to get started with spectral analysis.")

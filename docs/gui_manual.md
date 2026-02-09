@@ -69,4 +69,4 @@ streamlit run src/soniclit/gui/web/app.py
 ### Spectral Analysis Tab
 *   **Upload Signal CSV**: Upload a single CSV file.
 *   **Interactive Configuration**: Select columns from dropdown menus (automatically populated from the CSV headers).
-*   **Interactive Plot**: The generated plot is displayed using Matplotlib.
+*   **Interactive Plot**: The generated plot is displayed using Matplotlib and updates automatically when parameters change.
