@@ -9,3 +9,7 @@
 ## 2025-02-17 - [Optimizing Cubic Spline with NumPy]
 **Learning:** Naively vectorizing polynomial evaluation (e.g., cubic spline) can be slower than the original "inefficient" code due to excessive temporary array allocations for intermediate terms. Python's overhead for array creation dominates unless operations are fused or minimized.
 **Action:** Use Horner's method and explicitly precompute/share common subexpressions (e.g., diffs) to minimize the number of full-array temporary allocations. Also, be wary of mixed indentation in legacy files causing unexpected `TabError`.
+
+## 2025-05-20 - [Vectorizing Pandas Operations in Hot Loops]
+**Learning:** Found that repeatedly calling `pd.DataFrame` operations (arithmetic, filtering) inside a hot loop (time-stepping) creates significant overhead due to index alignment and Python iteration.
+**Action:** Convert DataFrames to NumPy arrays (or dictionaries of arrays) *before* entering the loop. Use vectorized NumPy broadcasting and dot products (`np.sum(A * B, axis=1)`) instead of Series element-wise operations. Also, specify `engine='c'` and `dtype=np.float64` in `pd.read_csv` for a measurable I/O boost.

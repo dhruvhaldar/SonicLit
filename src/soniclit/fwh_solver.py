@@ -69,8 +69,8 @@ def calculate_source_terms_serial(surf_file : str, preprocessed_data, ambient_pr
     ----------
     surf_file : str
         Path prefix for surface files.
-    preprocessed_data : pandas.DataFrame
-        Preprocessed geometry data.
+    preprocessed_data : pandas.DataFrame or dict
+        Preprocessed geometry data. Can be a DataFrame (legacy) or a dictionary of NumPy arrays 'n' and 'r' (optimized).
     ambient_pressure : float
         Ambient pressure.
     ambient_density : float
@@ -90,32 +90,58 @@ def calculate_source_terms_serial(surf_file : str, preprocessed_data, ambient_pr
         DataFrame containing Qn, Lm, Lr terms.
     """
     if is_permeable == True:
-        surface_data = pd.read_csv(surf_file, usecols = range(8,14), names = ['density','velocity_x','velocity_y','velocity_z','temperature','pressure'])
+        surface_data = pd.read_csv(surf_file, usecols = range(8,14), names = ['density','velocity_x','velocity_y','velocity_z','temperature','pressure'], dtype=np.float64, engine='c')
     else:
-        surface_data = pd.read_csv(surf_file, usecols = range(13,14), names = ['pressure'])
-    
-    preprocessed_data = preprocessed_data[['n1','n2','n3','r1','r2','r3']]
+        surface_data = pd.read_csv(surf_file, usecols = range(13,14), names = ['pressure'], dtype=np.float64, engine='c')
     
     surface_data = surface_data[f]
+
+    if isinstance(preprocessed_data, dict):
+        # Optimized path
+        geom_n = preprocessed_data['n']
+        geom_r = preprocessed_data['r']
+    else:
+        # Legacy path
+        geom_n = preprocessed_data[['n1','n2','n3']].to_numpy()
+        geom_r = preprocessed_data[['r1','r2','r3']].to_numpy()
+
+    surf_p = surface_data['pressure'].to_numpy() - ambient_pressure
     U0 = speed_of_sound*mach_number
-    surface_data['pressure'] = surface_data['pressure']-ambient_pressure
     
-    Out = pd.DataFrame()
+    Out = pd.DataFrame(index=surface_data.index)
     
     if is_permeable == True:
-        Out['Qn'] = (-ambient_density*U0[0]+surface_data['density']*(surface_data['velocity_x']))*preprocessed_data['n1'] + (-ambient_density*U0[1]+surface_data['density']*(surface_data['velocity_y']))*preprocessed_data['n2'] + (-ambient_density*U0[2]+surface_data['density']*(surface_data['velocity_z']))*preprocessed_data['n3']
-        L1 = surface_data['pressure']*preprocessed_data['n1'] + surface_data['density']*(surface_data['velocity_x']-U0[0])*((surface_data['velocity_x'])*preprocessed_data['n1']+(surface_data['velocity_y'])*preprocessed_data['n2']+(surface_data['velocity_z'])*preprocessed_data['n3'])
-        L2 = surface_data['pressure']*preprocessed_data['n2'] + surface_data['density']*(surface_data['velocity_y']-U0[1])*((surface_data['velocity_x'])*preprocessed_data['n1']+(surface_data['velocity_y'])*preprocessed_data['n2']+(surface_data['velocity_z'])*preprocessed_data['n3'])
-        L3 = surface_data['pressure']*preprocessed_data['n3'] + surface_data['density']*(surface_data['velocity_z']-U0[2])*((surface_data['velocity_x'])*preprocessed_data['n1']+(surface_data['velocity_y'])*preprocessed_data['n2']+(surface_data['velocity_z'])*preprocessed_data['n3'])
+        surf_rho = surface_data['density'].to_numpy()
+        surf_v = surface_data[['velocity_x','velocity_y','velocity_z']].to_numpy()
+
+        # Qn = (-rho0*U0 + rho*v) dot n
+        term_vec = -ambient_density * U0 + surf_rho[:, None] * surf_v
+        Qn = np.sum(term_vec * geom_n, axis=1)
+        Out['Qn'] = Qn
+
+        # L = p*n + rho*(v - U0)*((v) dot n)
+        v_dot_n = np.sum(surf_v * geom_n, axis=1)
+        factor = surf_rho * v_dot_n
+
+        momentum_term = factor[:, None] * (surf_v - U0)
+        pressure_term = surf_p[:, None] * geom_n
+        L = pressure_term + momentum_term
+
+        L1 = L[:, 0]
+        L2 = L[:, 1]
+        L3 = L[:, 2]
         
     else:
-        Out['Qn'] = (-ambient_density*U0[0])*preprocessed_data['n1'] + (-ambient_density*U0[1])*preprocessed_data['n2'] + (-ambient_density*U0[2])*preprocessed_data['n3']
-        L1 = surface_data['pressure']*preprocessed_data['n1']
-        L2 = surface_data['pressure']*preprocessed_data['n2']
-        L3 = surface_data['pressure']*preprocessed_data['n3']
+        # Qn = (-rho0*U0) dot n
+        Qn = np.dot(geom_n, -ambient_density * U0)
+        Out['Qn'] = Qn
+
+        L1 = surf_p * geom_n[:, 0]
+        L2 = surf_p * geom_n[:, 1]
+        L3 = surf_p * geom_n[:, 2]
     
     Out['Lm'] = -L1*mach_number[0] - L2*mach_number[1] - L3*mach_number[2]
-    Out['Lr'] = L1*preprocessed_data['r1'] + L2*preprocessed_data['r2'] + L3*preprocessed_data['r3']
+    Out['Lr'] = L1*geom_r[:, 0] + L2*geom_r[:, 1] + L3*geom_r[:, 2]
     
     return Out
 
@@ -291,6 +317,10 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
         filt = preprocessed_data['dS']!=0 #key to Filter rows with on-zero area
         preprocessed_data = preprocessed_data[filt]
 
+        # Optimization: Convert to NumPy arrays for vectorized calculations
+        geom_y = preprocessed_data[['y1','y2','y3']].to_numpy()
+        geom_n = preprocessed_data[['n1','n2','n3']].to_numpy()
+        geom_dS = preprocessed_data['dS'].to_numpy()
 
         beta = np.sqrt(1-mach_number[0]**2-mach_number[1]**2-mach_number[2]**2)
 
@@ -304,18 +334,19 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
         for idx, xo in enumerate(observer_locations):
 
             #calculation of time independent quantities
-            Mr0 = mach_number[0]*(xo[0]-preprocessed_data['y1'])+mach_number[1]*(xo[1]-preprocessed_data['y2'])+mach_number[2]*(xo[2]-preprocessed_data['y3'])
-            R0 = np.sqrt((xo[0]-preprocessed_data['y1'])**2+(xo[1]-preprocessed_data['y2'])**2+(xo[2]-preprocessed_data['y3'])**2)
+            diff = xo - geom_y
+            Mr0 = np.dot(diff, mach_number)
+            R0 = np.linalg.norm(diff, axis=1)
 
             # Calculate R - effective acoustic distance
             Rstar = np.sqrt(Mr0**2+(beta*R0)**2)
             R = (-Mr0+Rstar)/(beta**2)
 
             # Radiation vector
-            preprocessed_data['r1'] = (-mach_number[0]*R + (xo[0]-preprocessed_data['y1']))/R
-            preprocessed_data['r2'] = (-mach_number[1]*R + (xo[1]-preprocessed_data['y2']))/R
-            preprocessed_data['r3'] = (-mach_number[2]*R + (xo[2]-preprocessed_data['y3']))/R
-            Mr = -mach_number[0]*preprocessed_data['r1'] -mach_number[1]*preprocessed_data['r2'] -mach_number[2]*preprocessed_data['r3']
+            r_vec = (-mach_number * R[:, np.newaxis] + diff) / R[:, np.newaxis]
+            Mr = np.dot(r_vec, -mach_number)
+
+            preprocessed_arrays = {'n': geom_n, 'r': r_vec}
 
             tau = np.array(R/speed_of_sound) #travelling time of sound from all sources
             t_o = source_times+min(tau) #observer times
@@ -331,9 +362,9 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
             acoustic_pressure = np.zeros(len(t_o)+D)
             count = np.zeros(len(t_o)+D)
 
-            src_t0 = calculate_source_terms_serial(surf_file+'0.csv', preprocessed_data, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
-            src_t1 = calculate_source_terms_serial(surf_file+'1.csv', preprocessed_data, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
-            src_t2 = calculate_source_terms_serial(surf_file+'2.csv', preprocessed_data, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
+            src_t0 = calculate_source_terms_serial(surf_file+'0.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
+            src_t1 = calculate_source_terms_serial(surf_file+'1.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
+            src_t2 = calculate_source_terms_serial(surf_file+'2.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
 
 
             for j in range(1,len(source_times)-2):
@@ -342,31 +373,43 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
 
                 p_act =np.zeros(max(j_star)+1)
                 n_elm = np.zeros(max(j_star)+1)
-                src_t3 = calculate_source_terms_serial(surf_file+str(j+2)+'.csv', preprocessed_data, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
-                Qndot1 = (-src_t0['Qn']+src_t2['Qn'])/(2*dt)
-                Qn1 = src_t1['Qn']
-                Qndot2 = (-src_t1['Qn']+src_t3['Qn'])/(2*dt)
-                Qn2 = src_t2['Qn']
-                Lrdot1 = (-src_t0['Lr']+src_t2['Lr'])/(2*dt)
-                Lr1 = src_t1['Lr']
-                Lm1 = src_t1['Lm']
-                Lrdot2 = (-src_t1['Lr']+src_t3['Lr'])/(2*dt)
-                Lr2 = src_t2['Lr']
-                Lm2 = src_t2['Lm']
-                Qn = cubic_spline(interpolation_weight,src_t0['Qn'],src_t1['Qn'],src_t2['Qn'],src_t3['Qn'])
-                Qndot = (1-interpolation_weight)*Qndot2+interpolation_weight*Qndot1
-                Lr = cubic_spline(interpolation_weight,src_t0['Lr'],src_t1['Lr'],src_t2['Lr'],src_t3['Lr'])
-                Lrdot = (1-interpolation_weight)*Lrdot2+interpolation_weight*Lrdot1
-                Lm = cubic_spline(interpolation_weight,src_t0['Lm'],src_t1['Lm'],src_t2['Lm'],src_t3['Lm'])
+                src_t3 = calculate_source_terms_serial(surf_file+str(j+2)+'.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
 
-                pt1 = (Qndot/(R*(1-Mr)**2))*preprocessed_data['dS']
-                pt2 = ((Qn*speed_of_sound*(Mr-sum(mach_number**2)))/(R**2*(1-Mr)**3))*preprocessed_data['dS']
+                # Extract arrays for faster calculation
+                Qn0 = src_t0['Qn'].to_numpy()
+                Qn1 = src_t1['Qn'].to_numpy()
+                Qn2 = src_t2['Qn'].to_numpy()
+                Qn3 = src_t3['Qn'].to_numpy()
+
+                Lr0 = src_t0['Lr'].to_numpy()
+                Lr1 = src_t1['Lr'].to_numpy()
+                Lr2 = src_t2['Lr'].to_numpy()
+                Lr3 = src_t3['Lr'].to_numpy()
+
+                Lm0 = src_t0['Lm'].to_numpy()
+                Lm1 = src_t1['Lm'].to_numpy()
+                Lm2 = src_t2['Lm'].to_numpy()
+                Lm3 = src_t3['Lm'].to_numpy()
+
+                Qndot1 = (-Qn0+Qn2)/(2*dt)
+                Qndot2 = (-Qn1+Qn3)/(2*dt)
+                Lrdot1 = (-Lr0+Lr2)/(2*dt)
+                Lrdot2 = (-Lr1+Lr3)/(2*dt)
+
+                Qn = cubic_spline(interpolation_weight,Qn0,Qn1,Qn2,Qn3)
+                Qndot = (1-interpolation_weight)*Qndot2+interpolation_weight*Qndot1
+                Lr = cubic_spline(interpolation_weight,Lr0,Lr1,Lr2,Lr3)
+                Lrdot = (1-interpolation_weight)*Lrdot2+interpolation_weight*Lrdot1
+                Lm = cubic_spline(interpolation_weight,Lm0,Lm1,Lm2,Lm3)
+
+                pt1 = (Qndot/(R*(1-Mr)**2))*geom_dS
+                pt2 = ((Qn*speed_of_sound*(Mr-sum(mach_number**2)))/(R**2*(1-Mr)**3))*geom_dS
                 # Thickness component
                 pt = (pt1 + pt2)/(4*np.pi)
 
-                pq1 =(1/speed_of_sound)*(Lrdot/(R*(1-Mr)**2))*preprocessed_data['dS']
-                pq2 = ((Lr-Lm)/(R**2*(1-Mr)**2))*preprocessed_data['dS']
-                pq3 = ((Lr*(Mr-sum(mach_number**2)))/(R**2*(1-Mr)**3))*preprocessed_data['dS']
+                pq1 =(1/speed_of_sound)*(Lrdot/(R*(1-Mr)**2))*geom_dS
+                pq2 = ((Lr-Lm)/(R**2*(1-Mr)**2))*geom_dS
+                pq3 = ((Lr*(Mr-sum(mach_number**2)))/(R**2*(1-Mr)**3))*geom_dS
 
                 # Loading component
                 pq = (pq1+pq2+pq3)/(4*np.pi)
@@ -374,15 +417,15 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
                 p *= j_cond
 
 
-                np.add.at(p_act, j_star, p.values)
+                np.add.at(p_act, j_star, p)
                 np.add.at(n_elm, j_star, j_cond)
 
                 acoustic_pressure[min(j_adv):max(j_adv)+1] += p_act
                 count[min(j_adv):max(j_adv)+1] += n_elm
 
-                src_t0 = src_t1.copy()
-                src_t1 = src_t2.copy()
-                src_t2 = src_t3.copy()
+                src_t0 = src_t1
+                src_t1 = src_t2
+                src_t2 = src_t3
 
 
             fig, ax = plt.subplots( nrows=1, ncols=1, figsize = [12,8] )  # create figure & 1 axis
