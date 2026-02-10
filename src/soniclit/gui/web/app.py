@@ -13,6 +13,10 @@ import soniclit.fwh_solver as fwh
 import soniclit.signal_processing as sa
 from soniclit.utils import safe_extract_zip
 
+# Security: Max length for input strings to prevent DoS via ast.literal_eval
+MAX_INPUT_LENGTH = 5000
+MAX_MACH_INPUT_LENGTH = 200
+
 st.set_page_config(page_title="SonicLit Web GUI", layout="wide")
 
 st.title("SonicLit: Aeroacoustics & Signal Processing")
@@ -38,23 +42,27 @@ with tab_fwh:
         # Validation for obs_loc
         obs_valid = True
         try:
-            val = ast.literal_eval(obs_loc_str)
-            if not isinstance(val, (list, tuple)):
-                st.error("Observer locations must be a list of coordinates (e.g. [[0,0,10]]).")
-                obs_valid = False
-            elif len(val) > 100:
-                st.error("Too many observer locations (max 100).")
+            if len(obs_loc_str) > MAX_INPUT_LENGTH:
+                st.error(f"Input too long (max {MAX_INPUT_LENGTH} characters).")
                 obs_valid = False
             else:
-                for item in val:
-                    if not isinstance(item, (list, tuple)) or len(item) != 3:
-                        st.error("Each observer location must be a list of 3 coordinates [x, y, z].")
-                        obs_valid = False
-                        break
-                    if not all(isinstance(x, (int, float)) for x in item):
-                        st.error("Coordinates must be numbers.")
-                        obs_valid = False
-                        break
+                val = ast.literal_eval(obs_loc_str)
+                if not isinstance(val, (list, tuple)):
+                    st.error("Observer locations must be a list of coordinates (e.g. [[0,0,10]]).")
+                    obs_valid = False
+                elif len(val) > 100:
+                    st.error("Too many observer locations (max 100).")
+                    obs_valid = False
+                else:
+                    for item in val:
+                        if not isinstance(item, (list, tuple)) or len(item) != 3:
+                            st.error("Each observer location must be a list of 3 coordinates [x, y, z].")
+                            obs_valid = False
+                            break
+                        if not all(isinstance(x, (int, float)) for x in item):
+                            st.error("Coordinates must be numbers.")
+                            obs_valid = False
+                            break
         except:
             st.error("Invalid format. Use Python list syntax, e.g. [[0,0,10]]")
             obs_valid = False
@@ -69,13 +77,17 @@ with tab_fwh:
         # Validation for ma
         ma_valid = True
         try:
-            val = ast.literal_eval(ma_str)
-            if not isinstance(val, (list, tuple)):
-                 st.error("Mach Number must be a list (vector).")
-                 ma_valid = False
-            elif len(val) != 3:
-                 st.error("Mach Number must have 3 components [Mx, My, Mz].")
-                 ma_valid = False
+            if len(ma_str) > MAX_MACH_INPUT_LENGTH:
+                st.error(f"Input too long (max {MAX_MACH_INPUT_LENGTH} characters).")
+                ma_valid = False
+            else:
+                val = ast.literal_eval(ma_str)
+                if not isinstance(val, (list, tuple)):
+                    st.error("Mach Number must be a list (vector).")
+                    ma_valid = False
+                elif len(val) != 3:
+                    st.error("Mach Number must have 3 components [Mx, My, Mz].")
+                    ma_valid = False
         except:
             st.error("Invalid format. Use Python list syntax, e.g. [0.1, 0, 0]")
             ma_valid = False
