@@ -13,6 +13,16 @@ import soniclit.fwh_solver as fwh
 import soniclit.signal_processing as sa
 from soniclit.utils import safe_extract_zip
 
+# Locate dummy data for sample download
+data_path = "dummy_data.zip"
+if not os.path.exists(data_path):
+    # Try relative to this file
+    app_dir = os.path.dirname(os.path.abspath(__file__))
+    # adjust path relative to src/soniclit/gui/web/app.py -> root/dummy_data.zip
+    data_path = os.path.abspath(os.path.join(app_dir, "../../../../dummy_data.zip"))
+
+has_sample_data = os.path.exists(data_path)
+
 st.set_page_config(page_title="SonicLit Web GUI", layout="wide")
 
 st.title("SonicLit: Aeroacoustics & Signal Processing")
@@ -32,6 +42,18 @@ with tab_fwh:
         # Since FWH requires a set of files (0.csv, 1.csv, Avg.csv, etc.)
         # We will ask user to upload a ZIP file containing these.
         uploaded_surf_zip = st.file_uploader("Upload Surface Data (ZIP)", type="zip", help="Zip file should contain surface CSVs (Avg.csv, 0.csv, 1.csv...)")
+
+        if has_sample_data:
+            with st.expander("Need sample data?"):
+                st.markdown("Download this sample ZIP to test the FWH solver.")
+                with open(data_path, "rb") as f:
+                    st.download_button(
+                        label="Download Sample Data (ZIP)",
+                        data=f,
+                        file_name="sample_surface_data.zip",
+                        mime="application/zip",
+                        help="Download sample data to test the solver."
+                    )
 
         obs_loc_str = st.text_input("Observer Locations (e.g. [[0,0,10]])", value="[[0.0, 0.0, 1.0]]", help="List of coordinates [x,y,z]. Example: [[0, 0, 10], [0, 10, 10]]")
 
@@ -172,6 +194,18 @@ with tab_spectral:
 
     with col1:
         uploaded_sig = st.file_uploader("Upload Signal CSV", type="csv", help="CSV file with time and signal columns.")
+
+        if has_sample_data:
+             with st.expander("Need sample data?"):
+                st.markdown("Download the sample ZIP which contains `signal.csv`.")
+                with open(data_path, "rb") as f:
+                    st.download_button(
+                        label="Download Sample Data (ZIP)",
+                        data=f,
+                        file_name="sample_signal_data.zip",
+                        mime="application/zip",
+                        key="download_sample_spectral"
+                    )
 
         if uploaded_sig:
             df = pd.read_csv(uploaded_sig)

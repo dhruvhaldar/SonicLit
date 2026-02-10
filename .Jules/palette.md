@@ -15,3 +15,7 @@
 ## 2026-02-07 - Real-Time Python Literal Validation
 **Learning:** Scientific apps often require complex inputs like lists or vectors. Validating these inputs in real-time using `ast.literal_eval` prevents runtime crashes and provides immediate feedback.
 **Action:** Use try/except blocks with `ast.literal_eval` for `st.text_input` fields accepting Python literals, and disable action buttons if validation fails.
+
+## 2026-02-18 - Providing Sample Data
+**Learning:** Complex input requirements (e.g., multi-file ZIPs) create friction. Providing downloadable sample data directly in the UI significantly aids onboarding.
+**Action:** Use `st.download_button` inside an `st.expander` to offer sample files for complex inputs.
