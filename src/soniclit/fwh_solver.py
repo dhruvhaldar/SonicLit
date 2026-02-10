@@ -187,7 +187,9 @@ def calculate_source_terms_parallel(surf_file : str, preprocessed_data, ambient_
     else:
         surface_data = pd.read_csv(surf_file, usecols = range(13,14), names = ['pressure'])
     
-    preprocessed_data = preprocessed_data[['n1','n2','n3','r1','r2','r3']].to_numpy()
+    if isinstance(preprocessed_data, pd.DataFrame):
+        preprocessed_data = preprocessed_data[['n1','n2','n3','r1','r2','r3']].to_numpy()
+
     out = np.zeros([len(preprocessed_data),3])
     
     surface_data = surface_data[f]
@@ -362,6 +364,19 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
             acoustic_pressure = np.zeros(len(t_o)+D)
             count = np.zeros(len(t_o)+D)
 
+            # Optimization: Precompute geometric factors outside the loop
+            M2 = np.sum(mach_number**2)
+            one_minus_Mr = 1.0 - Mr
+            one_minus_Mr_sq = one_minus_Mr**2
+            one_minus_Mr_cu = one_minus_Mr**3
+
+            factor_pt1 = geom_dS / (R * one_minus_Mr_sq)
+            factor_pt2 = (geom_dS * (Mr - M2)) / (R**2 * one_minus_Mr_cu)
+            factor_pq1 = factor_pt1 / speed_of_sound
+            factor_pq2 = geom_dS / (R**2 * one_minus_Mr_sq)
+            factor_pq3 = factor_pt2 # Same geometric factor for Lr term
+            inv_4pi = 1.0 / (4.0 * np.pi)
+
             src_t0 = calculate_source_terms_serial(surf_file+'0.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
             src_t1 = calculate_source_terms_serial(surf_file+'1.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
             src_t2 = calculate_source_terms_serial(surf_file+'2.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
@@ -402,17 +417,18 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
                 Lrdot = (1-interpolation_weight)*Lrdot2+interpolation_weight*Lrdot1
                 Lm = cubic_spline(interpolation_weight,Lm0,Lm1,Lm2,Lm3)
 
-                pt1 = (Qndot/(R*(1-Mr)**2))*geom_dS
-                pt2 = ((Qn*speed_of_sound*(Mr-sum(mach_number**2)))/(R**2*(1-Mr)**3))*geom_dS
+                # Optimized: Use precomputed factors
+                pt1 = Qndot * factor_pt1
+                pt2 = Qn * speed_of_sound * factor_pt2
                 # Thickness component
-                pt = (pt1 + pt2)/(4*np.pi)
+                pt = (pt1 + pt2) * inv_4pi
 
-                pq1 =(1/speed_of_sound)*(Lrdot/(R*(1-Mr)**2))*geom_dS
-                pq2 = ((Lr-Lm)/(R**2*(1-Mr)**2))*geom_dS
-                pq3 = ((Lr*(Mr-sum(mach_number**2)))/(R**2*(1-Mr)**3))*geom_dS
+                pq1 = Lrdot * factor_pq1
+                pq2 = (Lr - Lm) * factor_pq2
+                pq3 = Lr * factor_pq3
 
                 # Loading component
-                pq = (pq1+pq2+pq3)/(4*np.pi)
+                pq = (pq1 + pq2 + pq3) * inv_4pi
                 p = pt+pq
                 p *= j_cond
 
@@ -464,6 +480,10 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
     filt = preprocessed_data['dS']!=0 #key to Filter rows with on-zero area
     preprocessed_data = preprocessed_data[filt]
 
+    # Optimization: Convert to NumPy arrays for vectorized calculations
+    geom_y = preprocessed_data[['y1','y2','y3']].to_numpy()
+    geom_n = preprocessed_data[['n1','n2','n3']].to_numpy()
+    geom_dS = preprocessed_data['dS'].to_numpy()
 
     beta = np.sqrt(1-mach_number[0]**2-mach_number[1]**2-mach_number[2]**2)
 
@@ -477,18 +497,20 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
     for idx, xo in enumerate(observer_locations):
 
         #calculation of time independent quantities
-        Mr0 = mach_number[0]*(xo[0]-preprocessed_data['y1'])+mach_number[1]*(xo[1]-preprocessed_data['y2'])+mach_number[2]*(xo[2]-preprocessed_data['y3'])
-        R0 = np.sqrt((xo[0]-preprocessed_data['y1'])**2+(xo[1]-preprocessed_data['y2'])**2+(xo[2]-preprocessed_data['y3'])**2)
+        diff = xo - geom_y
+        Mr0 = np.dot(diff, mach_number)
+        R0 = np.linalg.norm(diff, axis=1)
 
         # Calculate R - effective acoustic distance
         Rstar = np.sqrt(Mr0**2+(beta*R0)**2)
         R = (-Mr0+Rstar)/(beta**2)
 
         # Radiation vector
-        preprocessed_data['r1'] = (-mach_number[0]*R + (xo[0]-preprocessed_data['y1']))/R
-        preprocessed_data['r2'] = (-mach_number[1]*R + (xo[1]-preprocessed_data['y2']))/R
-        preprocessed_data['r3'] = (-mach_number[2]*R + (xo[2]-preprocessed_data['y3']))/R
-        Mr = -mach_number[0]*preprocessed_data['r1'] -mach_number[1]*preprocessed_data['r2'] -mach_number[2]*preprocessed_data['r3']
+        r_vec = (-mach_number * R[:, np.newaxis] + diff) / R[:, np.newaxis]
+        Mr = np.dot(r_vec, -mach_number)
+
+        # Optimized: Combine n and r for parallel distribution (Nx6 array)
+        preprocessed_arrays = np.hstack((geom_n, r_vec))
 
         tau = np.array(R/speed_of_sound) #travelling time of sound from all sources
         t_o = source_times+min(tau) #observer times
@@ -504,9 +526,22 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
         acoustic_pressure = np.zeros(len(t_o)+D)
         count = np.zeros(len(t_o)+D)
 
-        src_t0 = calculate_source_terms_parallel(surf_file+'0.csv', preprocessed_data, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
-        src_t1 = calculate_source_terms_parallel(surf_file+'1.csv', preprocessed_data, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
-        src_t2 = calculate_source_terms_parallel(surf_file+'2.csv', preprocessed_data, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
+        # Optimization: Precompute geometric factors outside the loop
+        M2 = np.sum(mach_number**2)
+        one_minus_Mr = 1.0 - Mr
+        one_minus_Mr_sq = one_minus_Mr**2
+        one_minus_Mr_cu = one_minus_Mr**3
+
+        factor_pt1 = geom_dS / (R * one_minus_Mr_sq)
+        factor_pt2 = (geom_dS * (Mr - M2)) / (R**2 * one_minus_Mr_cu)
+        factor_pq1 = factor_pt1 / speed_of_sound
+        factor_pq2 = geom_dS / (R**2 * one_minus_Mr_sq)
+        factor_pq3 = factor_pt2
+        inv_4pi = 1.0 / (4.0 * np.pi)
+
+        src_t0 = calculate_source_terms_parallel(surf_file+'0.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
+        src_t1 = calculate_source_terms_parallel(surf_file+'1.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
+        src_t2 = calculate_source_terms_parallel(surf_file+'2.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
 
 
         for j in range(1,len(source_times)-2):
@@ -515,7 +550,7 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
 
             p_act =np.zeros(max(j_star)+1)
             n_elm = np.zeros(max(j_star)+1)
-            src_t3 = calculate_source_terms_parallel(surf_file+str(j+2)+'.csv', preprocessed_data, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
+            src_t3 = calculate_source_terms_parallel(surf_file+str(j+2)+'.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
             Qndot1 = (-src_t0['Qn']+src_t2['Qn'])/(2*dt)
             Qn1 = src_t1['Qn']
             Qndot2 = (-src_t1['Qn']+src_t3['Qn'])/(2*dt)
@@ -532,17 +567,18 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
             Lrdot = (1-interpolation_weight)*Lrdot2+interpolation_weight*Lrdot1
             Lm = cubic_spline(interpolation_weight,src_t0['Lm'],src_t1['Lm'],src_t2['Lm'],src_t3['Lm'])
 
-            pt1 = (Qndot/(R*(1-Mr)**2))*preprocessed_data['dS']
-            pt2 = ((Qn*speed_of_sound*(Mr-sum(mach_number**2)))/(R**2*(1-Mr)**3))*preprocessed_data['dS']
+            # Optimized: Use precomputed factors
+            pt1 = Qndot * factor_pt1
+            pt2 = Qn * speed_of_sound * factor_pt2
             # Thickness component
-            pt = (pt1 + pt2)/(4*np.pi)
+            pt = (pt1 + pt2) * inv_4pi
 
-            pq1 =(1/speed_of_sound)*(Lrdot/(R*(1-Mr)**2))*preprocessed_data['dS']
-            pq2 = ((Lr-Lm)/(R**2*(1-Mr)**2))*preprocessed_data['dS']
-            pq3 = ((Lr*(Mr-sum(mach_number**2)))/(R**2*(1-Mr)**3))*preprocessed_data['dS']
+            pq1 = Lrdot * factor_pq1
+            pq2 = (Lr - Lm) * factor_pq2
+            pq3 = Lr * factor_pq3
 
             # Loading component
-            pq = (pq1+pq2+pq3)/(4*np.pi)
+            pq = (pq1 + pq2 + pq3) * inv_4pi
             p = np.array(pt+pq)
             p *= j_cond
 

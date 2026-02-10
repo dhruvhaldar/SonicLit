@@ -13,3 +13,7 @@
 ## 2025-05-20 - [Vectorizing Pandas Operations in Hot Loops]
 **Learning:** Found that repeatedly calling `pd.DataFrame` operations (arithmetic, filtering) inside a hot loop (time-stepping) creates significant overhead due to index alignment and Python iteration.
 **Action:** Convert DataFrames to NumPy arrays (or dictionaries of arrays) *before* entering the loop. Use vectorized NumPy broadcasting and dot products (`np.sum(A * B, axis=1)`) instead of Series element-wise operations. Also, specify `engine='c'` and `dtype=np.float64` in `pd.read_csv` for a measurable I/O boost.
+
+## 2026-03-10 - [Precomputing Loop-Invariant Factors]
+**Learning:** In time-marching simulations (like FWH solver), complex geometric factors involving distance ($R$) and Mach number ($M_r$) are often recalculated inside the loop despite being time-independent for stationary observers.
+**Action:** Extract these calculations (division, exponentiation) outside the loop. Precompute factors like `1/(R*(1-Mr)**2)` and use simple multiplication inside the loop. This can yield ~2x speedup for the solver loop.
