@@ -3,7 +3,7 @@ import os
 import shutil
 import zipfile
 import tempfile
-from soniclit.utils import safe_extract_zip
+from soniclit.utils import safe_extract_zip, validate_zip_contents
 
 class TestUtils(unittest.TestCase):
     def setUp(self):
@@ -39,6 +39,35 @@ class TestUtils(unittest.TestCase):
 
         # Verify file was not written outside
         self.assertFalse(os.path.exists(os.path.join(self.test_dir, 'evil.txt')))
+
+    def test_validate_zip_contents(self):
+        # Valid Case
+        with zipfile.ZipFile(self.zip_path, 'w') as zf:
+            zf.writestr('testAvg.csv', 'dummy')
+
+        with open(self.zip_path, 'rb') as f:
+            valid, msg = validate_zip_contents(f, "Avg.csv")
+            self.assertTrue(valid)
+            self.assertIn("Found testAvg.csv", msg)
+            self.assertEqual(f.tell(), 0) # Check pointer reset
+
+        # Invalid Case (wrong suffix)
+        with zipfile.ZipFile(self.zip_path, 'w') as zf:
+            zf.writestr('test.txt', 'dummy')
+
+        with open(self.zip_path, 'rb') as f:
+            valid, msg = validate_zip_contents(f, "Avg.csv")
+            self.assertFalse(valid)
+            self.assertIn("No file ending with", msg)
+
+        # Invalid Case (not a zip)
+        with open(self.zip_path, 'w') as f:
+            f.write("not a zip")
+
+        with open(self.zip_path, 'rb') as f:
+            valid, msg = validate_zip_contents(f, "Avg.csv")
+            self.assertFalse(valid)
+            self.assertIn("Invalid ZIP", msg)
 
 if __name__ == '__main__':
     unittest.main()

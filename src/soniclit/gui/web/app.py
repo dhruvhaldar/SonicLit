@@ -11,7 +11,7 @@ import tempfile
 # Import SonicLit modules
 import soniclit.fwh_solver as fwh
 import soniclit.signal_processing as sa
-from soniclit.utils import safe_extract_zip
+from soniclit.utils import safe_extract_zip, validate_zip_contents
 
 # Locate dummy data for sample download
 data_path = "dummy_data.zip"
@@ -42,6 +42,13 @@ with tab_fwh:
         # Since FWH requires a set of files (0.csv, 1.csv, Avg.csv, etc.)
         # We will ask user to upload a ZIP file containing these.
         uploaded_surf_zip = st.file_uploader("Upload Surface Data (ZIP)", type="zip", help="Zip file should contain surface CSVs (Avg.csv, 0.csv, 1.csv...)")
+
+        if uploaded_surf_zip:
+            is_valid, msg = validate_zip_contents(uploaded_surf_zip, "Avg.csv")
+            if is_valid:
+                st.success(f"✅ Valid surface data found: {msg.replace('Found ', '')}")
+            else:
+                st.warning(f"⚠️ Validation Warning: {msg}")
 
         if has_sample_data:
             with st.expander("Need sample data?"):
