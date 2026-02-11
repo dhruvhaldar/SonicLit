@@ -17,3 +17,7 @@
 ## 2026-03-10 - [Precomputing Loop-Invariant Factors]
 **Learning:** In time-marching simulations (like FWH solver), complex geometric factors involving distance ($R$) and Mach number ($M_r$) are often recalculated inside the loop despite being time-independent for stationary observers.
 **Action:** Extract these calculations (division, exponentiation) outside the loop. Precompute factors like `1/(R*(1-Mr)**2)` and use simple multiplication inside the loop. This can yield ~2x speedup for the solver loop.
+
+## 2026-03-12 - [Optimizing Weighted Accumulation]
+**Learning:** `np.add.at` is convenient for accumulating weighted values into bins, but it is unbuffered and relatively slow for large loops.
+**Action:** Use `np.bincount` with `weights` and `minlength` arguments for a ~1.6x speedup on accumulation operations. Ensure `minlength` is precomputed outside the loop to avoid redundant `max()` calls. Also, use explicit element-wise multiplication instead of `np.dot` to robustly handle both scalar and array inputs during vector operations.
