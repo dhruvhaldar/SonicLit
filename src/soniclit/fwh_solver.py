@@ -133,7 +133,10 @@ def calculate_source_terms_serial(surf_file : str, preprocessed_data, ambient_pr
         
     else:
         # Qn = (-rho0*U0) dot n
-        Qn = np.dot(geom_n, -ambient_density * U0)
+        # Optimized: Explicit calculation to handle both scalar and array ambient_density
+        Qn = (-ambient_density * U0[0]) * geom_n[:, 0] + \
+             (-ambient_density * U0[1]) * geom_n[:, 1] + \
+             (-ambient_density * U0[2]) * geom_n[:, 2]
         Out['Qn'] = Qn
 
         L1 = surf_p * geom_n[:, 0]
@@ -364,6 +367,9 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
             acoustic_pressure = np.zeros(len(t_o)+D)
             count = np.zeros(len(t_o)+D)
 
+            # Optimization: Precompute size for bincount to avoid repeated max() calls and allocation
+            len_p_act = np.max(j_star) + 1
+
             # Optimization: Precompute geometric factors outside the loop
             M2 = np.sum(mach_number**2)
             one_minus_Mr = 1.0 - Mr
@@ -386,8 +392,6 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
                 j_adv = j+j_star+1 #advanced time step
                 j_cond = (j_adv >= t_range[0])*(j_adv < t_range[1])
 
-                p_act =np.zeros(max(j_star)+1)
-                n_elm = np.zeros(max(j_star)+1)
                 src_t3 = calculate_source_terms_serial(surf_file+str(j+2)+'.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
 
                 # Extract arrays for faster calculation
@@ -433,8 +437,9 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
                 p *= j_cond
 
 
-                np.add.at(p_act, j_star, p)
-                np.add.at(n_elm, j_star, j_cond)
+                # Optimized: Use bincount for faster unbuffered accumulation
+                p_act = np.bincount(j_star, weights=p, minlength=len_p_act)
+                n_elm = np.bincount(j_star, weights=j_cond, minlength=len_p_act)
 
                 acoustic_pressure[min(j_adv):max(j_adv)+1] += p_act
                 count[min(j_adv):max(j_adv)+1] += n_elm
@@ -526,6 +531,9 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
         acoustic_pressure = np.zeros(len(t_o)+D)
         count = np.zeros(len(t_o)+D)
 
+        # Optimization: Precompute size for bincount/arrays
+        len_p_act = np.max(j_star) + 1
+
         # Optimization: Precompute geometric factors outside the loop
         M2 = np.sum(mach_number**2)
         one_minus_Mr = 1.0 - Mr
@@ -548,8 +556,6 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
             j_adv = j+j_star+1 #advanced time step
             j_cond = (j_adv >= t_range[0])*(j_adv < t_range[1])
 
-            p_act =np.zeros(max(j_star)+1)
-            n_elm = np.zeros(max(j_star)+1)
             src_t3 = calculate_source_terms_parallel(surf_file+str(j+2)+'.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
             Qndot1 = (-src_t0['Qn']+src_t2['Qn'])/(2*dt)
             Qn1 = src_t1['Qn']
@@ -595,12 +601,11 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
             Psplit = comm.scatter(Psplit, root=0)
             Jsplit = comm.scatter(Jsplit, root=0)
             cond = comm.scatter(cond, root=0)
-            p_act = comm.bcast(p_act, root=0)
-            n_elm = comm.bcast(n_elm, root=0)
-            #j_star = comm.bcast(j_star, root=0)
+            # p_act and n_elm are generated locally via bincount
 
-            np.add.at(p_act, Jsplit, Psplit)
-            np.add.at(n_elm, Jsplit, cond)
+            # Optimized: Use bincount instead of add.at
+            p_act = np.bincount(Jsplit, weights=Psplit, minlength=len_p_act)
+            n_elm = np.bincount(Jsplit, weights=cond, minlength=len_p_act)
 
 
             p_act = comm.gather(p_act, root=0)
