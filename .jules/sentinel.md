@@ -24,3 +24,11 @@
 1. Explicitly set `min_value` and `max_value` on all numeric inputs.
 2. Add backend clamping logic (e.g., `val = min(val, LIMIT)`) immediately after receiving input.
 3. Validate the length and structure of complex inputs (e.g., lists parsed via `ast.literal_eval`) to prevent recursion or massive loops.
+
+## 2026-02-15 - DoS Protection for Complex Input Parsing
+**Vulnerability:** The Streamlit app used `ast.literal_eval` on potentially unlimited string inputs (`Observer Locations`, `Mach Number`). An attacker could supply a massive string (e.g., 100MB) causing the server to hang or crash due to resource exhaustion (DoS) during parsing.
+**Learning:** Python's `ast.literal_eval` is safe from code execution but not from resource exhaustion. Frontend constraints (like `max_chars`) improve UX but do not protect the backend API.
+**Prevention:**
+1. Enforce strict length limits on string inputs using `len()` checks before expensive parsing operations.
+2. Use `max_chars` in frontend widgets as a first line of defense (UX).
+3. Validate structure and depth of parsed objects (e.g., list length) immediately after parsing.
