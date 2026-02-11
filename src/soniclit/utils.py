@@ -50,3 +50,31 @@ def safe_extract_zip(zip_ref, target_dir, max_size=500*1024*1024, max_ratio=100)
 
         # Extract individual member
         zip_ref.extract(member, target_dir)
+
+def validate_zip_contents(file_obj, required_suffix="Avg.csv"):
+    """
+    Validates that a zip file contains at least one file with the required suffix.
+
+    Args:
+        file_obj: A file-like object (e.g., BytesIO from Streamlit upload).
+        required_suffix (str): The suffix to look for (e.g., "Avg.csv").
+
+    Returns:
+        tuple: (bool, str) - (True/False, Message)
+    """
+    import zipfile
+    try:
+        with zipfile.ZipFile(file_obj, 'r') as z:
+            names = z.namelist()
+            found = [n for n in names if n.endswith(required_suffix)]
+            if found:
+                return True, f"Found {found[0]}"
+            else:
+                return False, f"No file ending with '{required_suffix}' found."
+    except zipfile.BadZipFile:
+        return False, "Invalid ZIP file."
+    except Exception as e:
+        return False, f"Error validating ZIP: {str(e)}"
+    finally:
+        if hasattr(file_obj, 'seek'):
+            file_obj.seek(0)
