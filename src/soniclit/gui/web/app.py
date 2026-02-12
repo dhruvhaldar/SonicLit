@@ -245,24 +245,31 @@ with tab_spectral:
                 time = df[time_col].values
                 sig = df[sig_col].values
 
-                fig, ax = plt.subplots()
+                with st.spinner("Computing spectrum..."):
+                    fig, ax = plt.subplots()
 
-                if method == "FFT":
-                    freq, df_bin, psd = sa.fft_spectrum(time, sig)
-                    ax.loglog(freq, psd)
-                    ax.set_title("FFT Spectrum")
-                elif method == "Welch":
-                    freq, df_bin, psd = sa.welch_spectrum(time, sig, chunks=chunks, overlap=overlap)
-                    ax.loglog(freq, psd)
-                    ax.set_title("Welch Spectrum")
+                    if method == "FFT":
+                        freq, df_bin, psd = sa.fft_spectrum(time, sig)
+                        ax.loglog(freq, psd)
+                        ax.set_title("FFT Spectrum")
+                    elif method == "Welch":
+                        freq, df_bin, psd = sa.welch_spectrum(time, sig, chunks=chunks, overlap=overlap)
+                        ax.loglog(freq, psd)
+                        ax.set_title("Welch Spectrum")
 
-                ax.set_xlabel("Frequency (Hz)")
-                ax.set_ylabel("PSD")
-                ax.grid(True)
+                    ax.set_xlabel("Frequency (Hz)")
+                    ax.set_ylabel("PSD")
+                    ax.grid(True)
 
-                st.pyplot(fig)
+                    st.pyplot(fig)
 
              except Exception as e:
                  st.error(f"Error: {e}")
         else:
              st.info("👋 Upload a CSV file on the left to get started with spectral analysis.")
+             st.markdown("""
+                **Expected Format:**
+                - A CSV file with at least two columns.
+                - One column for **Time** (s).
+                - One column for **Signal** (Pressure, Velocity, etc.).
+             """)

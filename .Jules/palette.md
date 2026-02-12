@@ -23,3 +23,7 @@
 ## 2025-02-18 - Immediate File Validation
 **Learning:** Users can upload invalid archives (e.g. ZIPs without required files) and only discover the error after a long calculation fails. Immediate validation of file structure upon upload provides critical feedback and prevents wasted time.
 **Action:** Implement `validate_zip_contents` immediately after `st.file_uploader` to check for required files (e.g., `Avg.csv`) and use `st.success`/`st.warning` for instant feedback. Crucially, always `seek(0)` the file pointer after validation to ensure subsequent processing works.
+
+## 2026-02-12 - AppTest Limitations for File Uploads
+**Learning:** Testing Streamlit file upload interactions with `AppTest` is limited; Playwright scripts verifying empty states and static text are a reliable alternative for ensuring UX copy (like detailed format instructions) is present.
+**Action:** When enhancing Streamlit forms involving file uploads, prioritize clear empty states and use Playwright for verification if AppTest coverage is insufficient.
