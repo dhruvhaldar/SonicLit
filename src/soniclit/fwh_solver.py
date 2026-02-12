@@ -58,6 +58,37 @@ def cubic_spline(interpolation_weight, f0, f1, f2, f3):
     return term
 
 
+def _precompute_spline_coeffs(interpolation_weight):
+    """
+    Precomputes coefficients for cubic spline interpolation to avoid
+    repeated calculation of weights inside a loop.
+
+    Returns
+    -------
+    c0, c1, c2, c3 : ndarray
+        Coefficients such that result = c0*f0 + c1*f1 + c2*f2 + c3*f3
+    """
+    w = interpolation_weight
+    w_sq = w * w
+    w_cu = w_sq * w
+
+    # Coefficients derived from Horner's method implementation in cubic_spline:
+    # c0 = (w^3 - w) / 6
+    # c1 = (-3w^3 + 3w^2 + 6w) / 6 = -w^3/2 + w^2/2 + w
+    # c2 = (3w^3 - 6w^2 - 3w + 6) / 6 = w^3/2 - w^2 - w/2 + 1
+    # c3 = (-w^3 + 3w^2 - 2w) / 6
+
+    # Use 1.0/6.0 multiplication instead of division for speed
+    inv_6 = 1.0/6.0
+
+    c0 = (w_cu - w) * inv_6
+    c1 = -0.5*w_cu + 0.5*w_sq + w
+    c2 = 0.5*w_cu - w_sq - 0.5*w + 1.0
+    c3 = (-w_cu + 3.0*w_sq - 2.0*w) * inv_6
+
+    return c0, c1, c2, c3
+
+
 #Functions for calculation of FWH source terms from surface pressure, mass and momentum flux data
 
 #Serial Implementation
@@ -382,6 +413,9 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
             one_minus_Mr_sq = one_minus_Mr**2
             one_minus_Mr_cu = one_minus_Mr**3
 
+            # Optimization: Precompute spline coefficients
+            sp_c0, sp_c1, sp_c2, sp_c3 = _precompute_spline_coeffs(interpolation_weight)
+
             factor_pt1 = geom_dS / (R * one_minus_Mr_sq)
             factor_pt2 = (geom_dS * (Mr - M2)) / (R**2 * one_minus_Mr_cu)
             factor_pq1 = factor_pt1 / speed_of_sound
@@ -421,11 +455,12 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
                 Lrdot1 = (-Lr0+Lr2)/(2*dt)
                 Lrdot2 = (-Lr1+Lr3)/(2*dt)
 
-                Qn = cubic_spline(interpolation_weight,Qn0,Qn1,Qn2,Qn3)
+                # Optimized: Use precomputed spline coefficients
+                Qn = sp_c0*Qn0 + sp_c1*Qn1 + sp_c2*Qn2 + sp_c3*Qn3
                 Qndot = (1-interpolation_weight)*Qndot2+interpolation_weight*Qndot1
-                Lr = cubic_spline(interpolation_weight,Lr0,Lr1,Lr2,Lr3)
+                Lr = sp_c0*Lr0 + sp_c1*Lr1 + sp_c2*Lr2 + sp_c3*Lr3
                 Lrdot = (1-interpolation_weight)*Lrdot2+interpolation_weight*Lrdot1
-                Lm = cubic_spline(interpolation_weight,Lm0,Lm1,Lm2,Lm3)
+                Lm = sp_c0*Lm0 + sp_c1*Lm1 + sp_c2*Lm2 + sp_c3*Lm3
 
                 # Optimized: Use precomputed factors
                 pt1 = Qndot * factor_pt1
@@ -546,6 +581,9 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
         one_minus_Mr_sq = one_minus_Mr**2
         one_minus_Mr_cu = one_minus_Mr**3
 
+        # Optimization: Precompute spline coefficients
+        sp_c0, sp_c1, sp_c2, sp_c3 = _precompute_spline_coeffs(interpolation_weight)
+
         factor_pt1 = geom_dS / (R * one_minus_Mr_sq)
         factor_pt2 = (geom_dS * (Mr - M2)) / (R**2 * one_minus_Mr_cu)
         factor_pq1 = factor_pt1 / speed_of_sound
@@ -573,11 +611,13 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
             Lrdot2 = (-src_t1['Lr']+src_t3['Lr'])/(2*dt)
             Lr2 = src_t2['Lr']
             Lm2 = src_t2['Lm']
-            Qn = cubic_spline(interpolation_weight,src_t0['Qn'],src_t1['Qn'],src_t2['Qn'],src_t3['Qn'])
+
+            # Optimized: Use precomputed spline coefficients
+            Qn = sp_c0*src_t0['Qn'] + sp_c1*src_t1['Qn'] + sp_c2*src_t2['Qn'] + sp_c3*src_t3['Qn']
             Qndot = (1-interpolation_weight)*Qndot2+interpolation_weight*Qndot1
-            Lr = cubic_spline(interpolation_weight,src_t0['Lr'],src_t1['Lr'],src_t2['Lr'],src_t3['Lr'])
+            Lr = sp_c0*src_t0['Lr'] + sp_c1*src_t1['Lr'] + sp_c2*src_t2['Lr'] + sp_c3*src_t3['Lr']
             Lrdot = (1-interpolation_weight)*Lrdot2+interpolation_weight*Lrdot1
-            Lm = cubic_spline(interpolation_weight,src_t0['Lm'],src_t1['Lm'],src_t2['Lm'],src_t3['Lm'])
+            Lm = sp_c0*src_t0['Lm'] + sp_c1*src_t1['Lm'] + sp_c2*src_t2['Lm'] + sp_c3*src_t3['Lm']
 
             # Optimized: Use precomputed factors
             pt1 = Qndot * factor_pt1
