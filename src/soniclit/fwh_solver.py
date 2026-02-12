@@ -89,6 +89,9 @@ def calculate_source_terms_serial(surf_file : str, preprocessed_data, ambient_pr
     pandas.DataFrame
         DataFrame containing Qn, Lm, Lr terms.
     """
+    if "://" in str(surf_file):
+        raise ValueError("Security: Remote file paths are not allowed.")
+
     if is_permeable == True:
         surface_data = pd.read_csv(surf_file, usecols = range(8,14), names = ['density','velocity_x','velocity_y','velocity_z','temperature','pressure'], dtype=np.float64, engine='c')
     else:
@@ -182,6 +185,9 @@ def calculate_source_terms_parallel(surf_file : str, preprocessed_data, ambient_
     RuntimeError
         If MPI is not available.
     """
+    if "://" in str(surf_file):
+        raise ValueError("Security: Remote file paths are not allowed.")
+
     if not MPI_AVAILABLE:
         raise RuntimeError("MPI is not available. Please install mpi4py and an MPI implementation to use parallel features.")
 
