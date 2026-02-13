@@ -9,3 +9,7 @@
 ## 2025-02-27 - Numpy Dot Product Overhead
 **Learning:** For small vector operations (e.g., dot product of a (N,3) array with a (3,) vector), explicit component-wise multiplication and summation in Python (`A[:,0]*v[0] + ...`) can be faster than `np.dot(A, v)` due to the overhead of numpy dispatch and broadcasting for small dimensions.
 **Action:** Be cautious with `np.dot` inside tight loops or on small dimensions; explicit unrolling might be faster.
+
+## 2025-02-27 - DataFrame Overhead in Loop
+**Learning:** Creating a `pd.DataFrame` inside a tight loop (like in `calculate_source_terms_serial`) adds significant overhead, especially when only the underlying numpy arrays are needed immediately after. Replacing the DataFrame return with a simple dictionary of numpy arrays yielded a ~7% performance improvement in the FWH solver's serial execution.
+**Action:** Avoid constructing Pandas DataFrames in performance-critical loops if the data can be passed as a dictionary of NumPy arrays or a similar lightweight structure.
