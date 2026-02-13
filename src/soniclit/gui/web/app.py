@@ -11,7 +11,7 @@ import tempfile
 # Import SonicLit modules
 import soniclit.fwh_solver as fwh
 import soniclit.signal_processing as sa
-from soniclit.utils import safe_extract_zip, validate_zip_contents
+from soniclit.utils import safe_extract_zip, validate_zip_contents, predict_column_roles
 
 # Locate dummy data for sample download
 data_path = "dummy_data.zip"
@@ -92,7 +92,7 @@ with tab_fwh:
             st.error("Invalid format. Use Python list syntax, e.g. [[0,0,10]]")
             obs_valid = False
 
-        dt_val = st.number_input("Time Step (dt)", value=0.01, format="%.4f", help="Simulation time step in seconds.")
+        dt_val = st.number_input("Time Step (dt)", value=0.01, format="%.4f", min_value=1e-9, help="Simulation time step in seconds.")
         steps_val = st.number_input("Number of Steps", value=10, step=1, min_value=1, max_value=100000, help="Total number of time steps to process.")
         # Security: Enforce backend limit to prevent DoS
         steps_val = min(steps_val, 100000)
@@ -117,7 +117,7 @@ with tab_fwh:
             st.error("Invalid format. Use Python list syntax, e.g. [0.1, 0, 0]")
             ma_valid = False
 
-        temp_val = st.number_input("Temperature (K)", value=298.0, help="Ambient temperature in Kelvin (affects speed of sound).")
+        temp_val = st.number_input("Temperature (K)", value=298.0, min_value=0.1, help="Ambient temperature in Kelvin (affects speed of sound).")
         perm_val = st.checkbox("Permeable Surface", value=False, help="Enable if using a permeable integration surface.")
 
         run_btn = st.button("Run FWH Solver", type="primary", disabled=not (obs_valid and ma_valid))
@@ -195,7 +195,7 @@ with tab_fwh:
                             # Plot preview if PNGs exist
                             png_files = [f for f in out_files if f.endswith(".png")]
                             for png in png_files:
-                                st.image(os.path.join(out_dir, png), caption=png)
+                                st.image(os.path.join(out_dir, png), caption=png, alt=f"Plot of {png}")
 
             except Exception as e:
                 st.error(f"Error occurred: {str(e)}")
@@ -226,8 +226,22 @@ with tab_spectral:
             df = pd.read_csv(uploaded_sig)
             st.dataframe(df.head())
 
-            time_col = st.selectbox("Select Time Column", df.columns)
-            sig_col = st.selectbox("Select Signal Column", [c for c in df.columns if c != time_col])
+            # Smart column prediction
+            time_idx_pred, sig_idx_pred = predict_column_roles(df.columns)
+
+            time_col = st.selectbox("Select Time Column", df.columns, index=time_idx_pred, help="The column containing time stamps (seconds).")
+
+            # Filter options for signal column
+            sig_options = [c for c in df.columns if c != time_col]
+
+            # Calculate default index for signal column
+            # If predicted signal column is available in options, find its index
+            sig_default_index = 0
+            predicted_sig_col_name = df.columns[sig_idx_pred]
+            if predicted_sig_col_name in sig_options:
+                sig_default_index = sig_options.index(predicted_sig_col_name)
+
+            sig_col = st.selectbox("Select Signal Column", sig_options, index=sig_default_index, help="The column containing the signal data to analyze.")
 
             method = st.selectbox("Method", ["FFT", "Welch"], help="Choose 'FFT' for standard spectrum or 'Welch' for smoothed periodogram.")
 

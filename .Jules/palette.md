@@ -27,3 +27,7 @@
 ## 2026-02-12 - AppTest Limitations for File Uploads
 **Learning:** Testing Streamlit file upload interactions with `AppTest` is limited; Playwright scripts verifying empty states and static text are a reliable alternative for ensuring UX copy (like detailed format instructions) is present.
 **Action:** When enhancing Streamlit forms involving file uploads, prioritize clear empty states and use Playwright for verification if AppTest coverage is insufficient.
+
+## 2026-02-13 - Smart Column Selection
+**Learning:** For data analysis tools where users frequently select columns (e.g., Time vs. Signal), heuristically predicting the correct column based on name patterns significantly reduces friction.
+**Action:** Implement lightweight `predict_column_roles` logic to set smart defaults for `st.selectbox` indices, especially for common scientific data formats.

@@ -78,3 +78,51 @@ def validate_zip_contents(file_obj, required_suffix="Avg.csv"):
     finally:
         if hasattr(file_obj, 'seek'):
             file_obj.seek(0)
+
+def predict_column_roles(columns):
+    """
+    Predicts which columns in a dataframe correspond to 'Time' and 'Signal'.
+
+    Args:
+        columns (list): List of column names (str).
+
+    Returns:
+        tuple: (time_col_index, sig_col_index)
+
+    Example:
+        >>> cols = ['Pressure', 'Time', 'Velocity']
+        >>> predict_column_roles(cols)
+        (1, 0)
+    """
+    time_col_idx = 0
+    sig_col_idx = 0
+
+    # Heuristic for Time: look for "time", "t", "date", "timestamp"
+    # We prefer exact match "time" or "t", then containing "time".
+
+    best_score = -1 # 0: contains time, 1: equals time/t
+
+    for i, col in enumerate(columns):
+        c = str(col).lower() # Ensure string
+        score = -1
+        if c == 'time' or c == 't':
+            score = 1
+        elif 'time' in c or 'date' in c or 'timestamp' in c:
+            score = 0
+
+        if score > best_score:
+            best_score = score
+            time_col_idx = i
+            if score == 1:
+                break
+
+    # Heuristic for Signal: first column that is NOT the predicted time column
+    if len(columns) > 1:
+        for i in range(len(columns)):
+            if i != time_col_idx:
+                sig_col_idx = i
+                break
+    else:
+        sig_col_idx = 0
+
+    return time_col_idx, sig_col_idx
