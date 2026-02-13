@@ -142,8 +142,7 @@ def calculate_source_terms_serial(surf_file : str, preprocessed_data, ambient_pr
     surf_p = surface_data['pressure'].to_numpy() - ambient_pressure
     U0 = speed_of_sound*mach_number
     
-    Out = pd.DataFrame(index=surface_data.index)
-    
+    # Optimization: Return dictionary of numpy arrays to avoid DataFrame overhead
     if is_permeable == True:
         surf_rho = surface_data['density'].to_numpy()
         surf_v = surface_data[['velocity_x','velocity_y','velocity_z']].to_numpy()
@@ -151,7 +150,6 @@ def calculate_source_terms_serial(surf_file : str, preprocessed_data, ambient_pr
         # Qn = (-rho0*U0 + rho*v) dot n
         term_vec = -ambient_density * U0 + surf_rho[:, None] * surf_v
         Qn = np.sum(term_vec * geom_n, axis=1)
-        Out['Qn'] = Qn
 
         # L = p*n + rho*(v - U0)*((v) dot n)
         v_dot_n = np.sum(surf_v * geom_n, axis=1)
@@ -171,16 +169,15 @@ def calculate_source_terms_serial(surf_file : str, preprocessed_data, ambient_pr
         Qn = (-ambient_density * U0[0]) * geom_n[:, 0] + \
              (-ambient_density * U0[1]) * geom_n[:, 1] + \
              (-ambient_density * U0[2]) * geom_n[:, 2]
-        Out['Qn'] = Qn
 
         L1 = surf_p * geom_n[:, 0]
         L2 = surf_p * geom_n[:, 1]
         L3 = surf_p * geom_n[:, 2]
     
-    Out['Lm'] = -L1*mach_number[0] - L2*mach_number[1] - L3*mach_number[2]
-    Out['Lr'] = L1*geom_r[:, 0] + L2*geom_r[:, 1] + L3*geom_r[:, 2]
+    Lm = -L1*mach_number[0] - L2*mach_number[1] - L3*mach_number[2]
+    Lr = L1*geom_r[:, 0] + L2*geom_r[:, 1] + L3*geom_r[:, 2]
     
-    return Out
+    return {'Qn': Qn, 'Lm': Lm, 'Lr': Lr}
 
 #Parallel Implementation
 def calculate_source_terms_parallel(surf_file : str, preprocessed_data, ambient_pressure, ambient_density, speed_of_sound, mach_number, f, is_permeable):
@@ -275,9 +272,9 @@ def calculate_source_terms_parallel(surf_file : str, preprocessed_data, ambient_
     outS = comm.gather(outS, root=0)
     outS = comm.bcast(outS,root=0)
     
-    Out = pd.DataFrame(np.concatenate(outS),columns=['Qn','Lm','Lr'])
-    
-    return Out
+    conc = np.concatenate(outS)
+    # Optimization: Return dictionary of numpy arrays to avoid DataFrame overhead
+    return {'Qn': conc[:,0], 'Lm': conc[:,1], 'Lr': conc[:,2]}
 
 
 
@@ -435,20 +432,21 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
                 src_t3 = calculate_source_terms_serial(surf_file+str(j+2)+'.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
 
                 # Extract arrays for faster calculation
-                Qn0 = src_t0['Qn'].to_numpy()
-                Qn1 = src_t1['Qn'].to_numpy()
-                Qn2 = src_t2['Qn'].to_numpy()
-                Qn3 = src_t3['Qn'].to_numpy()
+                # Optimized: Direct dictionary access (values are already numpy arrays)
+                Qn0 = src_t0['Qn']
+                Qn1 = src_t1['Qn']
+                Qn2 = src_t2['Qn']
+                Qn3 = src_t3['Qn']
 
-                Lr0 = src_t0['Lr'].to_numpy()
-                Lr1 = src_t1['Lr'].to_numpy()
-                Lr2 = src_t2['Lr'].to_numpy()
-                Lr3 = src_t3['Lr'].to_numpy()
+                Lr0 = src_t0['Lr']
+                Lr1 = src_t1['Lr']
+                Lr2 = src_t2['Lr']
+                Lr3 = src_t3['Lr']
 
-                Lm0 = src_t0['Lm'].to_numpy()
-                Lm1 = src_t1['Lm'].to_numpy()
-                Lm2 = src_t2['Lm'].to_numpy()
-                Lm3 = src_t3['Lm'].to_numpy()
+                Lm0 = src_t0['Lm']
+                Lm1 = src_t1['Lm']
+                Lm2 = src_t2['Lm']
+                Lm3 = src_t3['Lm']
 
                 Qndot1 = (-Qn0+Qn2)/(2*dt)
                 Qndot2 = (-Qn1+Qn3)/(2*dt)
