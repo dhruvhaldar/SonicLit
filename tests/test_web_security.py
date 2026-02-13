@@ -1,5 +1,6 @@
 import unittest
 import time
+import os
 from streamlit.testing.v1 import AppTest
 
 class TestWebSecurityDoS(unittest.TestCase):
@@ -37,6 +38,51 @@ class TestWebSecurityDoS(unittest.TestCase):
 
         if len(current_val) > 5000:
              self.assertTrue(found_length_error, "Input > 5000 chars but 'Input too long' error not shown.")
+
+    def test_is_file_size_valid(self):
+        """Test file size validation helper."""
+        from soniclit.utils import is_file_size_valid
+
+        class MockFile:
+            def __init__(self, size):
+                self.size = size
+
+        # 10MB limit
+        limit = 10
+
+        # Valid size (9MB)
+        valid_file = MockFile(9 * 1024 * 1024)
+        self.assertTrue(is_file_size_valid(valid_file, limit), "9MB should be valid for 10MB limit")
+
+        # Boundary (10MB)
+        boundary_file = MockFile(10 * 1024 * 1024)
+        self.assertTrue(is_file_size_valid(boundary_file, limit), "10MB should be valid for 10MB limit")
+
+        # Invalid size (11MB)
+        invalid_file = MockFile(11 * 1024 * 1024)
+        self.assertFalse(is_file_size_valid(invalid_file, limit), "11MB should be invalid for 10MB limit")
+
+    def test_sanitize_markdown(self):
+        """Test markdown sanitization helper."""
+        from soniclit.utils import sanitize_markdown
+
+        # Test HTML escaping
+        unsafe_html = "<script>alert(1)</script>"
+        safe_html = sanitize_markdown(unsafe_html)
+        self.assertNotIn("<script>", safe_html)
+        self.assertIn("&lt;script&gt;", safe_html)
+
+        # Test Markdown link breaking
+        unsafe_md = "[Click Me](javascript:alert(1))"
+        safe_md = sanitize_markdown(unsafe_md)
+        self.assertNotIn("[", safe_md)
+        self.assertNotIn("]", safe_md)
+        self.assertIn("(Click Me)", safe_md)
+
+        # Test mixed
+        unsafe_mixed = "[<script>](url)"
+        safe_mixed = sanitize_markdown(unsafe_mixed)
+        self.assertIn("(&lt;script&gt;)", safe_mixed)
 
     def test_ma_dos_length(self):
         """Test that providing a massive string to Mach Number is handled safely and quickly."""

@@ -7,11 +7,14 @@ import shutil
 import zipfile
 import ast
 import tempfile
-
 # Import SonicLit modules
 import soniclit.fwh_solver as fwh
 import soniclit.signal_processing as sa
-from soniclit.utils import safe_extract_zip, validate_zip_contents
+from soniclit.utils import safe_extract_zip, validate_zip_contents, is_file_size_valid, sanitize_markdown
+
+# Security Constants
+MAX_CSV_SIZE_MB = 10
+MAX_ZIP_SIZE_MB = 50
 
 # Locate dummy data for sample download
 data_path = "dummy_data.zip"
@@ -44,11 +47,19 @@ with tab_fwh:
         uploaded_surf_zip = st.file_uploader("Upload Surface Data (ZIP)", type="zip", help="Zip file should contain surface CSVs (Avg.csv, 0.csv, 1.csv...)")
 
         if uploaded_surf_zip:
-            is_valid, msg = validate_zip_contents(uploaded_surf_zip, "Avg.csv")
-            if is_valid:
-                st.success(f"✅ Valid surface data found: {msg.replace('Found ', '')}")
+            if not is_file_size_valid(uploaded_surf_zip, MAX_ZIP_SIZE_MB):
+                st.error(f"File too large. Please upload a ZIP file smaller than {MAX_ZIP_SIZE_MB}MB.")
+                uploaded_surf_zip = None
             else:
-                st.warning(f"⚠️ Validation Warning: {msg}")
+                is_valid, msg = validate_zip_contents(uploaded_surf_zip, "Avg.csv")
+
+                # Sanitize output to prevent Markdown/XSS injection
+                safe_msg = sanitize_markdown(msg.replace('Found ', ''))
+
+                if is_valid:
+                    st.success(f"✅ Valid surface data found: {safe_msg}")
+                else:
+                    st.warning(f"⚠️ Validation Warning: {sanitize_markdown(msg)}")
 
         if has_sample_data:
             with st.expander("Need sample data?"):
@@ -223,21 +234,25 @@ with tab_spectral:
                     )
 
         if uploaded_sig:
-            df = pd.read_csv(uploaded_sig)
-            st.dataframe(df.head())
+            if not is_file_size_valid(uploaded_sig, MAX_CSV_SIZE_MB):
+                st.error(f"File too large. Please upload a CSV file smaller than {MAX_CSV_SIZE_MB}MB.")
+                uploaded_sig = None
+            else:
+                df = pd.read_csv(uploaded_sig)
+                st.dataframe(df.head())
 
-            time_col = st.selectbox("Select Time Column", df.columns)
-            sig_col = st.selectbox("Select Signal Column", [c for c in df.columns if c != time_col])
+                time_col = st.selectbox("Select Time Column", df.columns)
+                sig_col = st.selectbox("Select Signal Column", [c for c in df.columns if c != time_col])
 
-            method = st.selectbox("Method", ["FFT", "Welch"], help="Choose 'FFT' for standard spectrum or 'Welch' for smoothed periodogram.")
+                method = st.selectbox("Method", ["FFT", "Welch"], help="Choose 'FFT' for standard spectrum or 'Welch' for smoothed periodogram.")
 
-            if method == "Welch":
-                col_w1, col_w2 = st.columns(2)
-                with col_w1:
-                    chunks = st.number_input("Chunks", value=4, step=1, min_value=1, max_value=1000, help="Number of segments to split the signal into (higher = smoother but lower frequency resolution).")
-                    chunks = min(chunks, 1000)
-                with col_w2:
-                    overlap = st.number_input("Overlap", value=0.5, min_value=0.0, max_value=0.99, help="Fraction of overlap between segments (typically 0.5 or 50%).")
+                if method == "Welch":
+                    col_w1, col_w2 = st.columns(2)
+                    with col_w1:
+                        chunks = st.number_input("Chunks", value=4, step=1, min_value=1, max_value=1000, help="Number of segments to split the signal into (higher = smoother but lower frequency resolution).")
+                        chunks = min(chunks, 1000)
+                    with col_w2:
+                        overlap = st.number_input("Overlap", value=0.5, min_value=0.0, max_value=0.99, help="Fraction of overlap between segments (typically 0.5 or 50%).")
 
     with col2:
         if uploaded_sig:
