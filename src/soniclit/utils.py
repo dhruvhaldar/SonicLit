@@ -1,6 +1,7 @@
 import os
 import zipfile
 import stat
+import html
 
 def safe_extract_zip(zip_ref, target_dir, max_size=500*1024*1024, max_ratio=100):
     """
@@ -78,3 +79,51 @@ def validate_zip_contents(file_obj, required_suffix="Avg.csv"):
     finally:
         if hasattr(file_obj, 'seek'):
             file_obj.seek(0)
+
+
+def is_file_size_valid(file_obj, max_size_mb):
+    """
+    Checks if a file's size is within the allowed limit.
+
+    Args:
+        file_obj: A file-like object with a .size attribute (e.g. Streamlit UploadedFile).
+        max_size_mb (int): Maximum allowed size in megabytes.
+
+    Returns:
+        bool: True if file size is valid, False otherwise.
+    """
+    if hasattr(file_obj, 'size'):
+        return file_obj.size <= max_size_mb * 1024 * 1024
+    # Fallback if no size attribute (e.g. standard file object), try to get size
+    try:
+        if hasattr(file_obj, 'seek') and hasattr(file_obj, 'tell'):
+            pos = file_obj.tell()
+            file_obj.seek(0, os.SEEK_END)
+            size = file_obj.tell()
+            file_obj.seek(pos)
+            return size <= max_size_mb * 1024 * 1024
+    except:
+        pass
+    # If we can't determine size, assume it's unsafe or let it fail elsewhere?
+    # Safer to reject if we can't validate.
+    return False
+
+
+def sanitize_markdown(text):
+    """
+    Sanitizes text to prevent Markdown injection and XSS.
+    Escapes HTML characters and replaces brackets to break Markdown links.
+
+    Args:
+        text (str): The text to sanitize.
+
+    Returns:
+        str: Sanitized text.
+    """
+    if not isinstance(text, str):
+        return str(text)
+    # Escape HTML to prevent HTML injection
+    safe_text = html.escape(text)
+    # Replace brackets to prevent Markdown link injection [text](url)
+    safe_text = safe_text.replace('[', '(').replace(']', ')')
+    return safe_text
