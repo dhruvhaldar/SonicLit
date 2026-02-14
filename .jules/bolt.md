@@ -13,3 +13,11 @@
 ## 2025-02-27 - DataFrame Overhead in Loop
 **Learning:** Creating a `pd.DataFrame` inside a tight loop (like in `calculate_source_terms_serial`) adds significant overhead, especially when only the underlying numpy arrays are needed immediately after. Replacing the DataFrame return with a simple dictionary of numpy arrays yielded a ~7% performance improvement in the FWH solver's serial execution.
 **Action:** Avoid constructing Pandas DataFrames in performance-critical loops if the data can be passed as a dictionary of NumPy arrays or a similar lightweight structure.
+
+## 2024-05-24 - I/O Optimization in Loop-Based Solvers
+**Learning:** In heavily I/O bound loop-based solvers (like time-marching FWH), reducing the number of columns read by `pd.read_csv` using `usecols` is a critical optimization. Even if `engine='c'` is used, parsing unused columns (like 'temperature' in `fwh_solver.py`) adds significant cumulative overhead.
+**Action:** Always audit `pd.read_csv` calls inside loops to ensure only strictly necessary columns are being parsed.
+
+## 2024-05-24 - Vectorization Pitfalls in Broadcasting
+**Learning:** Implicit broadcasting in NumPy can fail silently or misleadingly if dimensions are not explicitly managed. In `fwh_solver.py`, `ambient_density` (N,) * `U0` (3,) failed because it required `ambient_density[:, None]` to broadcast to (N,3).
+**Action:** When performing element-wise multiplication between arrays of different ranks (e.g., scalar field * vector field), always use explicit reshaping (e.g., `[:, None]`) to ensure correct broadcasting behavior.
