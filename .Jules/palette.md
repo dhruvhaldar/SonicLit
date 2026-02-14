@@ -27,3 +27,7 @@
 ## 2026-02-12 - AppTest Limitations for File Uploads
 **Learning:** Testing Streamlit file upload interactions with `AppTest` is limited; Playwright scripts verifying empty states and static text are a reliable alternative for ensuring UX copy (like detailed format instructions) is present.
 **Action:** When enhancing Streamlit forms involving file uploads, prioritize clear empty states and use Playwright for verification if AppTest coverage is insufficient.
+
+## 2026-02-14 - Derived Value Indicators
+**Learning:** Users often perform mental math to verify inputs (e.g., Total Time = dt * steps). Explicitly displaying these derived values reduces cognitive load and confirms user intent.
+**Action:** When multiple inputs combine to form a critical parameter, add a calculated display (caption or metric) immediately adjacent to the inputs.

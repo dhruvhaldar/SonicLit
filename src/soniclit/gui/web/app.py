@@ -108,6 +108,9 @@ with tab_fwh:
         # Security: Enforce backend limit to prevent DoS
         steps_val = min(steps_val, 100000)
 
+        total_sim_time = dt_val * steps_val
+        st.caption(f"⏱️ Total Simulation Time: **{total_sim_time:.4f} s**")
+
         ma_str = st.text_input("Mach Number (e.g. [0.1, 0, 0])", value="[0.0, 0.0, 0.0]", max_chars=5000, help="Mach vector [Mx, My, Mz]. Example: [0.1, 0.0, 0.0]")
 
         # Validation for ma

@@ -80,5 +80,52 @@ class TestWebApp(unittest.TestCase):
         # It should be fast because it shouldn't try to allocate anything huge
         self.assertLess(duration, 5.0, "Setting huge value took too long, possible DoS/Resource Exhaustion")
 
+    def test_total_sim_time_display(self):
+        """Test that the Total Simulation Time caption appears and is correct."""
+        at = AppTest.from_file("src/soniclit/gui/web/app.py")
+        at.run(timeout=10)
+
+        # Find inputs
+        dt_input = None
+        steps_input = None
+        for widget in at.number_input:
+            if "Time Step (dt)" in widget.label:
+                dt_input = widget
+            elif "Number of Steps" in widget.label:
+                steps_input = widget
+
+        self.assertIsNotNone(dt_input, "Could not find 'Time Step (dt)' input")
+        self.assertIsNotNone(steps_input, "Could not find 'Number of Steps' input")
+
+        # Set values
+        # Note: changing values triggers rerun
+        at = dt_input.set_value(0.5).run(timeout=10)
+
+        # Re-find steps input in the updated app state
+        steps_input = None
+        for widget in at.number_input:
+            if "Number of Steps" in widget.label:
+                steps_input = widget
+                break
+
+        at = steps_input.set_value(100).run(timeout=10)
+
+        # Check for caption
+        expected_text = "Total Simulation Time: **50.0000 s**"
+        found = False
+
+        # Check captions
+        # Note: AppTest.caption returns a list of Caption elements
+        all_text = [c.body for c in at.caption]
+        # Also check markdown just in case
+        all_text += [m.body for m in at.markdown]
+
+        for text in all_text:
+            if expected_text in text:
+                found = True
+                break
+
+        self.assertTrue(found, f"Caption '{expected_text}' not found in app. Found: {all_text}")
+
 if __name__ == '__main__':
     unittest.main()
