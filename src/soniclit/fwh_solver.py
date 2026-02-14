@@ -124,7 +124,8 @@ def calculate_source_terms_serial(surf_file : str, preprocessed_data, ambient_pr
         raise ValueError("Security: Remote file paths are not allowed.")
 
     if is_permeable == True:
-        surface_data = pd.read_csv(surf_file, usecols = range(8,14), names = ['density','velocity_x','velocity_y','velocity_z','temperature','pressure'], dtype=np.float64, engine='c')
+        # Optimized: Skip 'temperature' column (index 12) to reduce I/O overhead
+        surface_data = pd.read_csv(surf_file, usecols = [8, 9, 10, 11, 13], names = ['density','velocity_x','velocity_y','velocity_z','pressure'], dtype=np.float64, engine='c')
     else:
         surface_data = pd.read_csv(surf_file, usecols = range(13,14), names = ['pressure'], dtype=np.float64, engine='c')
     
@@ -148,7 +149,8 @@ def calculate_source_terms_serial(surf_file : str, preprocessed_data, ambient_pr
         surf_v = surface_data[['velocity_x','velocity_y','velocity_z']].to_numpy()
 
         # Qn = (-rho0*U0 + rho*v) dot n
-        term_vec = -ambient_density * U0 + surf_rho[:, None] * surf_v
+        # Optimized: Correct broadcasting for ambient_density
+        term_vec = -ambient_density[:, None] * U0 + surf_rho[:, None] * surf_v
         Qn = np.sum(term_vec * geom_n, axis=1)
 
         # L = p*n + rho*(v - U0)*((v) dot n)
@@ -220,7 +222,8 @@ def calculate_source_terms_parallel(surf_file : str, preprocessed_data, ambient_
         raise RuntimeError("MPI is not available. Please install mpi4py and an MPI implementation to use parallel features.")
 
     if is_permeable == True:
-        surface_data = pd.read_csv(surf_file, usecols = range(8,14), names = ['density','velocity_x','velocity_y','velocity_z','temperature','pressure'])
+        # Optimized: Skip 'temperature' column (index 12) to reduce I/O overhead
+        surface_data = pd.read_csv(surf_file, usecols = [8, 9, 10, 11, 13], names = ['density','velocity_x','velocity_y','velocity_z','pressure'])
     else:
         surface_data = pd.read_csv(surf_file, usecols = range(13,14), names = ['pressure'])
     
@@ -255,9 +258,10 @@ def calculate_source_terms_parallel(surf_file : str, preprocessed_data, ambient_
     
     if is_permeable == True:
         outS[:,0] = (-rho0S*U0[0]+surfS[:,0]*(surfS[:,1]))*preS[:,0] + (-rho0S*U0[1]+surfS[:,0]*(surfS[:,2]))*preS[:,1] + (-rho0S*U0[2]+surfS[:,0]*(surfS[:,3]))*preS[:,2]
-        L1 = surfS[:,5]*preS[:,0] + surfS[:,0]*(surfS[:,1]-U0[0])*((surfS[:,1])*preS[:,0]+(surfS[:,2])*preS[:,1]+(surfS[:,3])*preS[:,2])
-        L2 = surfS[:,5]*preS[:,1] + surfS[:,0]*(surfS[:,2]-U0[1])*((surfS[:,1])*preS[:,0]+(surfS[:,2])*preS[:,1]+(surfS[:,3])*preS[:,2])
-        L3 = surfS[:,5]*preS[:,2] + surfS[:,0]*(surfS[:,3]-U0[2])*((surfS[:,1])*preS[:,0]+(surfS[:,2])*preS[:,1]+(surfS[:,3])*preS[:,2])
+        # Optimized: Updated index for pressure (was 5, now 4 due to skipping temperature)
+        L1 = surfS[:,4]*preS[:,0] + surfS[:,0]*(surfS[:,1]-U0[0])*((surfS[:,1])*preS[:,0]+(surfS[:,2])*preS[:,1]+(surfS[:,3])*preS[:,2])
+        L2 = surfS[:,4]*preS[:,1] + surfS[:,0]*(surfS[:,2]-U0[1])*((surfS[:,1])*preS[:,0]+(surfS[:,2])*preS[:,1]+(surfS[:,3])*preS[:,2])
+        L3 = surfS[:,4]*preS[:,2] + surfS[:,0]*(surfS[:,3]-U0[2])*((surfS[:,1])*preS[:,0]+(surfS[:,2])*preS[:,1]+(surfS[:,3])*preS[:,2])
         
     else:
         outS[:,0] = (-rho0S*U0[0])*preS[:,0] + (-rho0S*U0[1])*preS[:,1] + (-rho0S*U0[2])*preS[:,2]
@@ -382,7 +386,8 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
             R = (-Mr0+Rstar)/(beta**2)
 
             # Radiation vector
-            r_vec = (-mach_number * R[:, np.newaxis] + diff) / R[:, np.newaxis]
+            # Optimized: Simplify r_vec calculation: (-M*R + diff)/R = -M + diff/R
+            r_vec = diff / R[:, np.newaxis] - mach_number
             Mr = np.dot(r_vec, -mach_number)
 
             preprocessed_arrays = {'n': geom_n, 'r': r_vec}
@@ -420,6 +425,15 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
             factor_pq3 = factor_pt2 # Same geometric factor for Lr term
             inv_4pi = 1.0 / (4.0 * np.pi)
 
+            # Optimization: Precompute scaled factors to reduce mults inside loop
+            factor_pt1_scaled = factor_pt1 * inv_4pi
+            factor_pt2_scaled = factor_pt2 * (speed_of_sound * inv_4pi)
+            factor_pq1_scaled = factor_pq1 * inv_4pi
+            factor_pq2_scaled = factor_pq2 * inv_4pi
+            factor_pq3_scaled = factor_pq3 * inv_4pi
+
+            one_minus_interpolation_weight = 1.0 - interpolation_weight
+
             src_t0 = calculate_source_terms_serial(surf_file+'0.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
             src_t1 = calculate_source_terms_serial(surf_file+'1.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
             src_t2 = calculate_source_terms_serial(surf_file+'2.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
@@ -455,23 +469,17 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
 
                 # Optimized: Use precomputed spline coefficients
                 Qn = sp_c0*Qn0 + sp_c1*Qn1 + sp_c2*Qn2 + sp_c3*Qn3
-                Qndot = (1-interpolation_weight)*Qndot2+interpolation_weight*Qndot1
+                Qndot = one_minus_interpolation_weight*Qndot2+interpolation_weight*Qndot1
                 Lr = sp_c0*Lr0 + sp_c1*Lr1 + sp_c2*Lr2 + sp_c3*Lr3
-                Lrdot = (1-interpolation_weight)*Lrdot2+interpolation_weight*Lrdot1
+                Lrdot = one_minus_interpolation_weight*Lrdot2+interpolation_weight*Lrdot1
                 Lm = sp_c0*Lm0 + sp_c1*Lm1 + sp_c2*Lm2 + sp_c3*Lm3
 
                 # Optimized: Use precomputed factors
-                pt1 = Qndot * factor_pt1
-                pt2 = Qn * speed_of_sound * factor_pt2
-                # Thickness component
-                pt = (pt1 + pt2) * inv_4pi
-
-                pq1 = Lrdot * factor_pq1
-                pq2 = (Lr - Lm) * factor_pq2
-                pq3 = Lr * factor_pq3
+                pt = Qndot * factor_pt1_scaled + Qn * factor_pt2_scaled
 
                 # Loading component
-                pq = (pq1 + pq2 + pq3) * inv_4pi
+                pq = Lrdot * factor_pq1_scaled + (Lr - Lm) * factor_pq2_scaled + Lr * factor_pq3_scaled
+
                 p = pt+pq
                 p *= j_cond
 
@@ -550,7 +558,8 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
         R = (-Mr0+Rstar)/(beta**2)
 
         # Radiation vector
-        r_vec = (-mach_number * R[:, np.newaxis] + diff) / R[:, np.newaxis]
+        # Optimized: Simplify r_vec calculation: (-M*R + diff)/R = -M + diff/R
+        r_vec = diff / R[:, np.newaxis] - mach_number
         Mr = np.dot(r_vec, -mach_number)
 
         # Optimized: Combine n and r for parallel distribution (Nx6 array)
@@ -589,6 +598,15 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
         factor_pq3 = factor_pt2
         inv_4pi = 1.0 / (4.0 * np.pi)
 
+        # Optimization: Precompute scaled factors to reduce mults inside loop
+        factor_pt1_scaled = factor_pt1 * inv_4pi
+        factor_pt2_scaled = factor_pt2 * (speed_of_sound * inv_4pi)
+        factor_pq1_scaled = factor_pq1 * inv_4pi
+        factor_pq2_scaled = factor_pq2 * inv_4pi
+        factor_pq3_scaled = factor_pq3 * inv_4pi
+
+        one_minus_interpolation_weight = 1.0 - interpolation_weight
+
         src_t0 = calculate_source_terms_parallel(surf_file+'0.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
         src_t1 = calculate_source_terms_parallel(surf_file+'1.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
         src_t2 = calculate_source_terms_parallel(surf_file+'2.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
@@ -612,23 +630,17 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
 
             # Optimized: Use precomputed spline coefficients
             Qn = sp_c0*src_t0['Qn'] + sp_c1*src_t1['Qn'] + sp_c2*src_t2['Qn'] + sp_c3*src_t3['Qn']
-            Qndot = (1-interpolation_weight)*Qndot2+interpolation_weight*Qndot1
+            Qndot = one_minus_interpolation_weight*Qndot2+interpolation_weight*Qndot1
             Lr = sp_c0*src_t0['Lr'] + sp_c1*src_t1['Lr'] + sp_c2*src_t2['Lr'] + sp_c3*src_t3['Lr']
-            Lrdot = (1-interpolation_weight)*Lrdot2+interpolation_weight*Lrdot1
+            Lrdot = one_minus_interpolation_weight*Lrdot2+interpolation_weight*Lrdot1
             Lm = sp_c0*src_t0['Lm'] + sp_c1*src_t1['Lm'] + sp_c2*src_t2['Lm'] + sp_c3*src_t3['Lm']
 
             # Optimized: Use precomputed factors
-            pt1 = Qndot * factor_pt1
-            pt2 = Qn * speed_of_sound * factor_pt2
-            # Thickness component
-            pt = (pt1 + pt2) * inv_4pi
-
-            pq1 = Lrdot * factor_pq1
-            pq2 = (Lr - Lm) * factor_pq2
-            pq3 = Lr * factor_pq3
+            pt = Qndot * factor_pt1_scaled + Qn * factor_pt2_scaled
 
             # Loading component
-            pq = (pq1 + pq2 + pq3) * inv_4pi
+            pq = Lrdot * factor_pq1_scaled + (Lr - Lm) * factor_pq2_scaled + Lr * factor_pq3_scaled
+
             p = np.array(pt+pq)
             p *= j_cond
 
