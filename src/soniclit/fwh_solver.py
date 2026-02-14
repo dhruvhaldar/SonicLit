@@ -148,16 +148,25 @@ def calculate_source_terms_serial(surf_file : str, preprocessed_data, ambient_pr
         surf_rho = surface_data['density'].to_numpy()
         surf_v = surface_data[['velocity_x','velocity_y','velocity_z']].to_numpy()
 
+        # Optimized: Avoid creating large intermediate (N,3) array for Qn calculation
         # Qn = (-rho0*U0 + rho*v) dot n
-        # Optimized: Correct broadcasting for ambient_density
-        term_vec = -ambient_density[:, None] * U0 + surf_rho[:, None] * surf_v
-        Qn = np.sum(term_vec * geom_n, axis=1)
+        #    = -rho0 * (U0 dot n) + rho * (v dot n)
+
+        # Calculate v dot n first (N,)
+        v_dot_n = np.sum(surf_v * geom_n, axis=1)
+
+        # Calculate rho * (v dot n) (N,)
+        rho_v_dot_n = surf_rho * v_dot_n
+
+        # Calculate U0 dot n (N,)
+        U0_dot_n = np.dot(geom_n, U0)
+
+        Qn = -ambient_density * U0_dot_n + rho_v_dot_n
 
         # L = p*n + rho*(v - U0)*((v) dot n)
-        v_dot_n = np.sum(surf_v * geom_n, axis=1)
-        factor = surf_rho * v_dot_n
+        #   = p*n + rho_v_dot_n * (v - U0)
 
-        momentum_term = factor[:, None] * (surf_v - U0)
+        momentum_term = rho_v_dot_n[:, None] * (surf_v - U0)
         pressure_term = surf_p[:, None] * geom_n
         L = pressure_term + momentum_term
 
@@ -257,11 +266,26 @@ def calculate_source_terms_parallel(surf_file : str, preprocessed_data, ambient_
         
     
     if is_permeable == True:
-        outS[:,0] = (-rho0S*U0[0]+surfS[:,0]*(surfS[:,1]))*preS[:,0] + (-rho0S*U0[1]+surfS[:,0]*(surfS[:,2]))*preS[:,1] + (-rho0S*U0[2]+surfS[:,0]*(surfS[:,3]))*preS[:,2]
-        # Optimized: Updated index for pressure (was 5, now 4 due to skipping temperature)
-        L1 = surfS[:,4]*preS[:,0] + surfS[:,0]*(surfS[:,1]-U0[0])*((surfS[:,1])*preS[:,0]+(surfS[:,2])*preS[:,1]+(surfS[:,3])*preS[:,2])
-        L2 = surfS[:,4]*preS[:,1] + surfS[:,0]*(surfS[:,2]-U0[1])*((surfS[:,1])*preS[:,0]+(surfS[:,2])*preS[:,1]+(surfS[:,3])*preS[:,2])
-        L3 = surfS[:,4]*preS[:,2] + surfS[:,0]*(surfS[:,3]-U0[2])*((surfS[:,1])*preS[:,0]+(surfS[:,2])*preS[:,1]+(surfS[:,3])*preS[:,2])
+        # Optimized: Avoid redundant calculations of v dot n and U0 dot n
+
+        # Calculate v dot n (N,)
+        v_dot_n = surfS[:,1]*preS[:,0] + surfS[:,2]*preS[:,1] + surfS[:,3]*preS[:,2]
+
+        # Calculate rho * (v dot n) (N,)
+        rho_v_dot_n = surfS[:,0] * v_dot_n
+
+        # Calculate U0 dot n (N,)
+        U0_dot_n = U0[0]*preS[:,0] + U0[1]*preS[:,1] + U0[2]*preS[:,2]
+
+        # Qn = -rho0 * (U0 dot n) + rho * (v dot n)
+        outS[:,0] = -rho0S * U0_dot_n + rho_v_dot_n
+
+        # L = p*n + rho*(v - U0)*(v dot n)
+        #   = p*n + rho_v_dot_n * (v - U0)
+
+        L1 = surfS[:,4]*preS[:,0] + rho_v_dot_n * (surfS[:,1]-U0[0])
+        L2 = surfS[:,4]*preS[:,1] + rho_v_dot_n * (surfS[:,2]-U0[1])
+        L3 = surfS[:,4]*preS[:,2] + rho_v_dot_n * (surfS[:,3]-U0[2])
         
     else:
         outS[:,0] = (-rho0S*U0[0])*preS[:,0] + (-rho0S*U0[1])*preS[:,1] + (-rho0S*U0[2])*preS[:,2]

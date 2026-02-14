@@ -21,3 +21,7 @@
 ## 2024-05-24 - Vectorization Pitfalls in Broadcasting
 **Learning:** Implicit broadcasting in NumPy can fail silently or misleadingly if dimensions are not explicitly managed. In `fwh_solver.py`, `ambient_density` (N,) * `U0` (3,) failed because it required `ambient_density[:, None]` to broadcast to (N,3).
 **Action:** When performing element-wise multiplication between arrays of different ranks (e.g., scalar field * vector field), always use explicit reshaping (e.g., `[:, None]`) to ensure correct broadcasting behavior.
+
+## 2025-02-18 - Vector Optimization in FWH Solver
+**Learning:** In NumPy, calculating `np.sum((A + B) * C, axis=1)` where A, B, C are large (N, 3) arrays involves creating a temporary intermediate array (A+B) of size (N, 3). It is more memory-efficient and often faster to compute `np.sum(A * C, axis=1) + np.sum(B * C, axis=1)` if A and B are constructed from smaller components (e.g., broadcasting). Specifically, `(-rho0 * U0 + rho * v) . n` is better computed as `-rho0 * (U0 . n) + rho * (v . n)`.
+**Action:** When optimizing vector equations, look for opportunities to decompose terms to avoid large intermediate array allocations, especially when dot products reduce dimensionality.
