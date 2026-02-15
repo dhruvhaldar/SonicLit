@@ -92,7 +92,7 @@ def _precompute_spline_coeffs(interpolation_weight):
 #Functions for calculation of FWH source terms from surface pressure, mass and momentum flux data
 
 #Serial Implementation
-def calculate_source_terms_serial(surf_file : str, preprocessed_data, ambient_pressure, ambient_density, speed_of_sound, mach_number, f, is_permeable):
+def calculate_source_terms_serial(surf_file : str, preprocessed_data, ambient_pressure, ambient_density, speed_of_sound, mach_number, f, is_permeable, skip_Qn=False):
     """
     Calculates FWH source terms (Qn, Lm, Lr) from surface data (Serial implementation).
 
@@ -114,6 +114,8 @@ def calculate_source_terms_serial(surf_file : str, preprocessed_data, ambient_pr
         Current time step index.
     is_permeable : bool
         Flag for permeable surface.
+    skip_Qn : bool, optional
+        If True, skips Qn calculation and returns None for Qn.
 
     Returns
     -------
@@ -158,10 +160,13 @@ def calculate_source_terms_serial(surf_file : str, preprocessed_data, ambient_pr
         # Calculate rho * (v dot n) (N,)
         rho_v_dot_n = surf_rho * v_dot_n
 
-        # Calculate U0 dot n (N,)
-        U0_dot_n = np.dot(geom_n, U0)
+        if not skip_Qn:
+            # Calculate U0 dot n (N,)
+            U0_dot_n = np.dot(geom_n, U0)
 
-        Qn = -ambient_density * U0_dot_n + rho_v_dot_n
+            Qn = -ambient_density * U0_dot_n + rho_v_dot_n
+        else:
+            Qn = None
 
         # L = p*n + rho*(v - U0)*((v) dot n)
         #   = p*n + rho_v_dot_n * (v - U0)
@@ -175,11 +180,14 @@ def calculate_source_terms_serial(surf_file : str, preprocessed_data, ambient_pr
         L3 = L[:, 2]
         
     else:
-        # Qn = (-rho0*U0) dot n
-        # Optimized: Explicit calculation to handle both scalar and array ambient_density
-        Qn = (-ambient_density * U0[0]) * geom_n[:, 0] + \
-             (-ambient_density * U0[1]) * geom_n[:, 1] + \
-             (-ambient_density * U0[2]) * geom_n[:, 2]
+        if not skip_Qn:
+            # Qn = (-rho0*U0) dot n
+            # Optimized: Explicit calculation to handle both scalar and array ambient_density
+            Qn = (-ambient_density * U0[0]) * geom_n[:, 0] + \
+                 (-ambient_density * U0[1]) * geom_n[:, 1] + \
+                 (-ambient_density * U0[2]) * geom_n[:, 2]
+        else:
+            Qn = None
 
         L1 = surf_p * geom_n[:, 0]
         L2 = surf_p * geom_n[:, 1]
@@ -191,7 +199,7 @@ def calculate_source_terms_serial(surf_file : str, preprocessed_data, ambient_pr
     return {'Qn': Qn, 'Lm': Lm, 'Lr': Lr}
 
 #Parallel Implementation
-def calculate_source_terms_parallel(surf_file : str, preprocessed_data, ambient_pressure, ambient_density, speed_of_sound, mach_number, f, is_permeable):
+def calculate_source_terms_parallel(surf_file : str, preprocessed_data, ambient_pressure, ambient_density, speed_of_sound, mach_number, f, is_permeable, skip_Qn=False):
     """
     Calculates FWH source terms (Qn, Lm, Lr) from surface data (Parallel implementation).
 
@@ -213,6 +221,8 @@ def calculate_source_terms_parallel(surf_file : str, preprocessed_data, ambient_
         Current time step index.
     is_permeable : bool
         Flag for permeable surface.
+    skip_Qn : bool, optional
+        If True, skips Qn calculation and returns zeros for Qn (assumes caller handles static Qn).
 
     Returns
     -------
@@ -263,7 +273,7 @@ def calculate_source_terms_parallel(surf_file : str, preprocessed_data, ambient_
     U0 = comm.bcast(U0, root=0)
     is_permeable = comm.bcast(is_permeable, root=0)
     mach_number = comm.bcast(mach_number, root=0)
-        
+    skip_Qn = comm.bcast(skip_Qn, root=0)
     
     if is_permeable == True:
         # Optimized: Avoid redundant calculations of v dot n and U0 dot n
@@ -274,11 +284,14 @@ def calculate_source_terms_parallel(surf_file : str, preprocessed_data, ambient_
         # Calculate rho * (v dot n) (N,)
         rho_v_dot_n = surfS[:,0] * v_dot_n
 
-        # Calculate U0 dot n (N,)
-        U0_dot_n = U0[0]*preS[:,0] + U0[1]*preS[:,1] + U0[2]*preS[:,2]
+        if not skip_Qn:
+            # Calculate U0 dot n (N,)
+            U0_dot_n = U0[0]*preS[:,0] + U0[1]*preS[:,1] + U0[2]*preS[:,2]
 
-        # Qn = -rho0 * (U0 dot n) + rho * (v dot n)
-        outS[:,0] = -rho0S * U0_dot_n + rho_v_dot_n
+            # Qn = -rho0 * (U0 dot n) + rho * (v dot n)
+            outS[:,0] = -rho0S * U0_dot_n + rho_v_dot_n
+        else:
+            outS[:,0] = 0.0
 
         # L = p*n + rho*(v - U0)*(v dot n)
         #   = p*n + rho_v_dot_n * (v - U0)
@@ -288,7 +301,11 @@ def calculate_source_terms_parallel(surf_file : str, preprocessed_data, ambient_
         L3 = surfS[:,4]*preS[:,2] + rho_v_dot_n * (surfS[:,3]-U0[2])
         
     else:
-        outS[:,0] = (-rho0S*U0[0])*preS[:,0] + (-rho0S*U0[1])*preS[:,1] + (-rho0S*U0[2])*preS[:,2]
+        if not skip_Qn:
+            outS[:,0] = (-rho0S*U0[0])*preS[:,0] + (-rho0S*U0[1])*preS[:,1] + (-rho0S*U0[2])*preS[:,2]
+        else:
+            outS[:,0] = 0.0
+
         L1 = surfS[:,0]*preS[:,0]
         L2 = surfS[:,0]*preS[:,1]
         L3 = surfS[:,0]*preS[:,2]
@@ -458,24 +475,36 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
 
             one_minus_interpolation_weight = 1.0 - interpolation_weight
 
-            src_t0 = calculate_source_terms_serial(surf_file+'0.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
-            src_t1 = calculate_source_terms_serial(surf_file+'1.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
-            src_t2 = calculate_source_terms_serial(surf_file+'2.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
+            # Optimization: Precompute Qn_static for impermeable surfaces
+            Qn_static = None
+            skip_Qn = False
+            pt_static = None
+
+            if not is_permeable:
+                # Calculate Qn_static: (-rho0*U0) dot n
+                U0_static = speed_of_sound * mach_number
+                Qn_static = (-ambient_density * U0_static[0]) * geom_n[:, 0] + \
+                            (-ambient_density * U0_static[1]) * geom_n[:, 1] + \
+                            (-ambient_density * U0_static[2]) * geom_n[:, 2]
+                skip_Qn = True
+
+                # Precompute pt component since Qn is static and Qndot is 0
+                # pt = 0 * factor_pt1_scaled + Qn_static * factor_pt2_scaled
+                pt_static = Qn_static * factor_pt2_scaled
+
+            src_t0 = calculate_source_terms_serial(surf_file+'0.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable, skip_Qn=skip_Qn)
+            src_t1 = calculate_source_terms_serial(surf_file+'1.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable, skip_Qn=skip_Qn)
+            src_t2 = calculate_source_terms_serial(surf_file+'2.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable, skip_Qn=skip_Qn)
 
 
             for j in range(1,len(source_times)-2):
                 j_adv = j+j_star+1 #advanced time step
                 j_cond = (j_adv >= t_range[0])*(j_adv < t_range[1])
 
-                src_t3 = calculate_source_terms_serial(surf_file+str(j+2)+'.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
+                src_t3 = calculate_source_terms_serial(surf_file+str(j+2)+'.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable, skip_Qn=skip_Qn)
 
                 # Extract arrays for faster calculation
                 # Optimized: Direct dictionary access (values are already numpy arrays)
-                Qn0 = src_t0['Qn']
-                Qn1 = src_t1['Qn']
-                Qn2 = src_t2['Qn']
-                Qn3 = src_t3['Qn']
-
                 Lr0 = src_t0['Lr']
                 Lr1 = src_t1['Lr']
                 Lr2 = src_t2['Lr']
@@ -486,20 +515,31 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
                 Lm2 = src_t2['Lm']
                 Lm3 = src_t3['Lm']
 
-                Qndot1 = (-Qn0+Qn2)/(2*dt)
-                Qndot2 = (-Qn1+Qn3)/(2*dt)
                 Lrdot1 = (-Lr0+Lr2)/(2*dt)
                 Lrdot2 = (-Lr1+Lr3)/(2*dt)
 
                 # Optimized: Use precomputed spline coefficients
-                Qn = sp_c0*Qn0 + sp_c1*Qn1 + sp_c2*Qn2 + sp_c3*Qn3
-                Qndot = one_minus_interpolation_weight*Qndot2+interpolation_weight*Qndot1
                 Lr = sp_c0*Lr0 + sp_c1*Lr1 + sp_c2*Lr2 + sp_c3*Lr3
                 Lrdot = one_minus_interpolation_weight*Lrdot2+interpolation_weight*Lrdot1
                 Lm = sp_c0*Lm0 + sp_c1*Lm1 + sp_c2*Lm2 + sp_c3*Lm3
 
-                # Optimized: Use precomputed factors
-                pt = Qndot * factor_pt1_scaled + Qn * factor_pt2_scaled
+                if not is_permeable:
+                    # Optimized: Use precomputed pt_static
+                    pt = pt_static
+                else:
+                    Qn0 = src_t0['Qn']
+                    Qn1 = src_t1['Qn']
+                    Qn2 = src_t2['Qn']
+                    Qn3 = src_t3['Qn']
+
+                    Qndot1 = (-Qn0+Qn2)/(2*dt)
+                    Qndot2 = (-Qn1+Qn3)/(2*dt)
+
+                    Qn = sp_c0*Qn0 + sp_c1*Qn1 + sp_c2*Qn2 + sp_c3*Qn3
+                    Qndot = one_minus_interpolation_weight*Qndot2+interpolation_weight*Qndot1
+
+                    # Optimized: Use precomputed factors
+                    pt = Qndot * factor_pt1_scaled + Qn * factor_pt2_scaled
 
                 # Loading component
                 pq = Lrdot * factor_pq1_scaled + (Lr - Lm) * factor_pq2_scaled + Lr * factor_pq3_scaled
@@ -631,36 +671,60 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
 
         one_minus_interpolation_weight = 1.0 - interpolation_weight
 
-        src_t0 = calculate_source_terms_parallel(surf_file+'0.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
-        src_t1 = calculate_source_terms_parallel(surf_file+'1.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
-        src_t2 = calculate_source_terms_parallel(surf_file+'2.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
+        # Optimization: Precompute Qn_static for impermeable surfaces
+        Qn_static = None
+        skip_Qn = False
+        pt_static = None
+
+        if not is_permeable:
+            # Calculate Qn_static: (-rho0*U0) dot n
+            U0_static = speed_of_sound * mach_number
+            Qn_static = (-ambient_density * U0_static[0]) * geom_n[:, 0] + \
+                        (-ambient_density * U0_static[1]) * geom_n[:, 1] + \
+                        (-ambient_density * U0_static[2]) * geom_n[:, 2]
+            skip_Qn = True
+
+            # Precompute pt component since Qn is static and Qndot is 0
+            # pt = 0 * factor_pt1_scaled + Qn_static * factor_pt2_scaled
+            pt_static = Qn_static * factor_pt2_scaled
+
+        src_t0 = calculate_source_terms_parallel(surf_file+'0.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable, skip_Qn=skip_Qn)
+        src_t1 = calculate_source_terms_parallel(surf_file+'1.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable, skip_Qn=skip_Qn)
+        src_t2 = calculate_source_terms_parallel(surf_file+'2.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable, skip_Qn=skip_Qn)
 
 
         for j in range(1,len(source_times)-2):
             j_adv = j+j_star+1 #advanced time step
             j_cond = (j_adv >= t_range[0])*(j_adv < t_range[1])
 
-            src_t3 = calculate_source_terms_parallel(surf_file+str(j+2)+'.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable)
-            Qndot1 = (-src_t0['Qn']+src_t2['Qn'])/(2*dt)
-            Qn1 = src_t1['Qn']
-            Qndot2 = (-src_t1['Qn']+src_t3['Qn'])/(2*dt)
-            Qn2 = src_t2['Qn']
-            Lrdot1 = (-src_t0['Lr']+src_t2['Lr'])/(2*dt)
+            src_t3 = calculate_source_terms_parallel(surf_file+str(j+2)+'.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable, skip_Qn=skip_Qn)
+
             Lr1 = src_t1['Lr']
             Lm1 = src_t1['Lm']
-            Lrdot2 = (-src_t1['Lr']+src_t3['Lr'])/(2*dt)
+
             Lr2 = src_t2['Lr']
             Lm2 = src_t2['Lm']
 
+            Lrdot1 = (-src_t0['Lr']+src_t2['Lr'])/(2*dt)
+            Lrdot2 = (-src_t1['Lr']+src_t3['Lr'])/(2*dt)
+
             # Optimized: Use precomputed spline coefficients
-            Qn = sp_c0*src_t0['Qn'] + sp_c1*src_t1['Qn'] + sp_c2*src_t2['Qn'] + sp_c3*src_t3['Qn']
-            Qndot = one_minus_interpolation_weight*Qndot2+interpolation_weight*Qndot1
             Lr = sp_c0*src_t0['Lr'] + sp_c1*src_t1['Lr'] + sp_c2*src_t2['Lr'] + sp_c3*src_t3['Lr']
             Lrdot = one_minus_interpolation_weight*Lrdot2+interpolation_weight*Lrdot1
             Lm = sp_c0*src_t0['Lm'] + sp_c1*src_t1['Lm'] + sp_c2*src_t2['Lm'] + sp_c3*src_t3['Lm']
 
-            # Optimized: Use precomputed factors
-            pt = Qndot * factor_pt1_scaled + Qn * factor_pt2_scaled
+            if not is_permeable:
+                # Optimized: Use precomputed pt_static
+                pt = pt_static
+            else:
+                Qndot1 = (-src_t0['Qn']+src_t2['Qn'])/(2*dt)
+                Qndot2 = (-src_t1['Qn']+src_t3['Qn'])/(2*dt)
+
+                Qn = sp_c0*src_t0['Qn'] + sp_c1*src_t1['Qn'] + sp_c2*src_t2['Qn'] + sp_c3*src_t3['Qn']
+                Qndot = one_minus_interpolation_weight*Qndot2+interpolation_weight*Qndot1
+
+                # Optimized: Use precomputed factors
+                pt = Qndot * factor_pt1_scaled + Qn * factor_pt2_scaled
 
             # Loading component
             pq = Lrdot * factor_pq1_scaled + (Lr - Lm) * factor_pq2_scaled + Lr * factor_pq3_scaled
