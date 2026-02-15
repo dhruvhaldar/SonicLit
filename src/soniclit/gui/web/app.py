@@ -159,37 +159,43 @@ with tab_fwh:
                     os.makedirs(surf_dir, exist_ok=True)
                     os.makedirs(out_dir, exist_ok=True)
 
-                    # Extract ZIP
-                    with zipfile.ZipFile(uploaded_surf_zip, 'r') as zip_ref:
-                        safe_extract_zip(zip_ref, surf_dir)
+                    prefix = None
+                    msg = None
 
-                    # Identify prefix
-                    # We expect files like prefixAvg.csv, prefix0.csv
-                    # Let's find Avg.csv
-                    files = os.listdir(surf_dir)
-                    avg_files = [f for f in files if f.endswith("Avg.csv")]
+                    with st.status("Processing Simulation...", expanded=True) as status:
+                        st.write("📂 Extracting surface data...")
+                        # Extract ZIP
+                        with zipfile.ZipFile(uploaded_surf_zip, 'r') as zip_ref:
+                            safe_extract_zip(zip_ref, surf_dir)
 
-                    if not avg_files:
-                         # Maybe it's in a subdir?
-                         # For now assume flat structure in zip
-                         st.error("Could not find *Avg.csv in the uploaded ZIP.")
-                         prefix = None
-                    else:
-                        # Take the first one found
-                        avg_file = avg_files[0]
-                        prefix = avg_file.replace("Avg.csv", "")
-                        # Full path prefix
-                        full_prefix = os.path.join(surf_dir, prefix)
+                        st.write("⚙️ Configuring solver...")
+                        # Identify prefix
+                        # We expect files like prefixAvg.csv, prefix0.csv
+                        # Let's find Avg.csv
+                        files = os.listdir(surf_dir)
+                        avg_files = [f for f in files if f.endswith("Avg.csv")]
 
-                        # Output prefix
-                        out_prefix = os.path.join(out_dir, "fwh_out")
+                        if not avg_files:
+                            # Maybe it's in a subdir?
+                            # For now assume flat structure in zip
+                            st.error("Could not find *Avg.csv in the uploaded ZIP.")
+                            status.update(label="Validation Failed", state="error", expanded=True)
+                            prefix = None
+                        else:
+                            # Take the first one found
+                            avg_file = avg_files[0]
+                            prefix = avg_file.replace("Avg.csv", "")
+                            # Full path prefix
+                            full_prefix = os.path.join(surf_dir, prefix)
 
-                        # Run FWH
-                        with st.spinner("Running FWH Solver..."):
-                            msg = fwh.stationary_serial(full_prefix, out_prefix, obs_loc, t_src, ma, perm_val, write=True, Ta=temp_val)
-                            st.success(msg)
+                            # Output prefix
+                            out_prefix = os.path.join(out_dir, "fwh_out")
 
-                            # Display/Download results
+                            st.write("🚀 Running FWH Solver...")
+                            # Run FWH
+                            msg = fwh.stationary_serial(full_prefix, out_prefix, obs_loc, t_src, ma, perm_val, write=True, ambient_temperature=temp_val)
+
+                            st.write("📦 Packaging results...")
                             # List generated files
                             out_files = os.listdir(out_dir)
                             # Create a zip of results
@@ -198,18 +204,23 @@ with tab_fwh:
                                 for f in out_files:
                                     res_zip.write(os.path.join(out_dir, f), arcname=f)
 
-                            with open(result_zip_path, "rb") as fp:
-                                st.download_button(
-                                    label="Download Results (ZIP)",
-                                    data=fp,
-                                    file_name="fwh_results.zip",
-                                    mime="application/zip"
-                                )
+                            status.update(label="Simulation Complete!", state="complete", expanded=False)
 
-                            # Plot preview if PNGs exist
-                            png_files = [f for f in out_files if f.endswith(".png")]
-                            for png in png_files:
-                                st.image(os.path.join(out_dir, png), caption=png)
+                    if prefix is not None:
+                        st.success(msg)
+
+                        with open(result_zip_path, "rb") as fp:
+                            st.download_button(
+                                label="Download Results (ZIP)",
+                                data=fp,
+                                file_name="fwh_results.zip",
+                                mime="application/zip"
+                            )
+
+                        # Plot preview if PNGs exist
+                        png_files = [f for f in out_files if f.endswith(".png")]
+                        for png in png_files:
+                            st.image(os.path.join(out_dir, png), caption=png)
 
             except Exception as e:
                 st.error(f"Error occurred: {str(e)}")
