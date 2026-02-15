@@ -148,14 +148,18 @@ def calculate_source_terms_serial(surf_file : str, preprocessed_data, ambient_pr
     # Optimization: Return dictionary of numpy arrays to avoid DataFrame overhead
     if is_permeable == True:
         surf_rho = surface_data['density'].to_numpy()
-        surf_v = surface_data[['velocity_x','velocity_y','velocity_z']].to_numpy()
+        # Optimized: Avoid creating large (N,3) arrays by using component-wise operations
+        surf_vx = surface_data['velocity_x'].to_numpy()
+        surf_vy = surface_data['velocity_y'].to_numpy()
+        surf_vz = surface_data['velocity_z'].to_numpy()
 
         # Optimized: Avoid creating large intermediate (N,3) array for Qn calculation
         # Qn = (-rho0*U0 + rho*v) dot n
         #    = -rho0 * (U0 dot n) + rho * (v dot n)
 
         # Calculate v dot n first (N,)
-        v_dot_n = np.sum(surf_v * geom_n, axis=1)
+        # Optimized: Component-wise dot product avoids (N,3) array allocation
+        v_dot_n = surf_vx * geom_n[:, 0] + surf_vy * geom_n[:, 1] + surf_vz * geom_n[:, 2]
 
         # Calculate rho * (v dot n) (N,)
         rho_v_dot_n = surf_rho * v_dot_n
@@ -171,13 +175,10 @@ def calculate_source_terms_serial(surf_file : str, preprocessed_data, ambient_pr
         # L = p*n + rho*(v - U0)*((v) dot n)
         #   = p*n + rho_v_dot_n * (v - U0)
 
-        momentum_term = rho_v_dot_n[:, None] * (surf_v - U0)
-        pressure_term = surf_p[:, None] * geom_n
-        L = pressure_term + momentum_term
-
-        L1 = L[:, 0]
-        L2 = L[:, 1]
-        L3 = L[:, 2]
+        # Optimized: Compute L components directly to avoid (N,3) array allocations
+        L1 = surf_p * geom_n[:, 0] + rho_v_dot_n * (surf_vx - U0[0])
+        L2 = surf_p * geom_n[:, 1] + rho_v_dot_n * (surf_vy - U0[1])
+        L3 = surf_p * geom_n[:, 2] + rho_v_dot_n * (surf_vz - U0[2])
         
     else:
         if not skip_Qn:
