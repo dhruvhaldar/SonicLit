@@ -31,3 +31,7 @@
 ## 2026-02-14 - Derived Value Indicators
 **Learning:** Users often perform mental math to verify inputs (e.g., Total Time = dt * steps). Explicitly displaying these derived values reduces cognitive load and confirms user intent.
 **Action:** When multiple inputs combine to form a critical parameter, add a calculated display (caption or metric) immediately adjacent to the inputs.
+
+## 2026-02-18 - Multi-Step Process Feedback
+**Learning:** For long-running processes involving multiple stages (extract, configure, run, package), a single `st.spinner` is opaque. Using `st.status` provides transparency and reassures the user that progress is being made.
+**Action:** Replace single-step spinners with `st.status` containers for complex workflows, providing granular updates at each stage.
