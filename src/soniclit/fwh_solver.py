@@ -166,7 +166,11 @@ def calculate_source_terms_serial(surf_file : str, preprocessed_data, ambient_pr
 
         if not skip_Qn:
             # Calculate U0 dot n (N,)
-            U0_dot_n = np.dot(geom_n, U0)
+            if isinstance(preprocessed_data, dict) and 'U0_dot_n' in preprocessed_data:
+                # Optimized: Use precomputed value
+                U0_dot_n = preprocessed_data['U0_dot_n']
+            else:
+                U0_dot_n = np.dot(geom_n, U0)
 
             Qn = -ambient_density * U0_dot_n + rho_v_dot_n
         else:
@@ -433,6 +437,12 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
             Mr = np.dot(r_vec, -mach_number)
 
             preprocessed_arrays = {'n': geom_n, 'r': r_vec}
+
+            if is_permeable:
+                # Optimized: Precompute U0 dot n to avoid repeated calculation inside the loop
+                U0_static = speed_of_sound * mach_number
+                U0_dot_n_static = np.dot(geom_n, U0_static)
+                preprocessed_arrays['U0_dot_n'] = U0_dot_n_static
 
             tau = np.array(R/speed_of_sound) #travelling time of sound from all sources
             t_o = source_times+min(tau) #observer times

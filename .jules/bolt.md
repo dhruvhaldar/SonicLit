@@ -1,11 +1,3 @@
-## 2025-02-12 - [FWH Solver: Precompute Static Qn]
-**Learning:** For stationary, impermeable surfaces in the FWH solver, the thickness noise term `Qn` (dependent on `U0` and surface normals `n`) is entirely time-independent. Recomputing it at every time step (including redundant spline interpolation of a constant value) was a significant bottleneck (~1.6x slowdown).
-**Action:** Always check for time-invariant terms in physics simulations, especially inside tight loops. Precomputing `Qn` and skipping its derivatives (`Qndot = 0`) drastically reduces arithmetic operations without changing the result. Also, ensuring helper functions like `calculate_source_terms_serial` can accept precomputed/skipped values simplifies the optimization logic.
-
-## 2025-02-12 - [FWH Solver: Component-wise Calculation]
-**Learning:** In FWH solver, calculating vector terms like `L = p*n + rho*(v - U0)*((v) dot n)` by creating full `(N, 3)` arrays for `p*n`, `v-U0`, and `L` introduces significant memory allocation overhead in tight loops. Decomposing these into scalar components (`L1`, `L2`, `L3`) using `(N,)` arrays and broadcasting avoids these allocations and yielded a ~2x speedup for the mathematical operations in benchmarks.
-**Action:** When performing vector arithmetic on large arrays inside loops, prefer component-wise calculations over full vector array allocations if the vector dimension is small (e.g., 3).
-
-## 2025-02-12 - [FWH Solver: PyArrow Engine for I/O]
-**Learning:** The FWH solver (stationary case) is I/O bound because it reads a CSV file at every time step. Switching `pd.read_csv` from the default C engine (`engine='c'`) to the PyArrow engine (`engine='pyarrow'`) yielded a massive ~4.4x speedup in file reading. This requires `pyarrow` to be installed (which is increasingly standard in data stacks) and assumes compatible data types.
-**Action:** For performance-critical CSV reading, especially in loops, use `engine='pyarrow'` and explicitly specify `dtype` to maximize throughput. Ensure `pyarrow` is listed in dependencies.
+## 2025-02-19 - Precomputing Loop-Invariant Vector Products in FWH Solver
+**Learning:** In `stationary_serial` FWH solver, `U0 . n` (mean flow velocity dot normal) is loop-invariant for permeable surfaces. Precomputing it saves `N` dot products per time step. Although the solver is I/O bound (reading CSVs), this arithmetic optimization still yielded a ~5.5% speedup (1.81s -> 1.71s for 100k panels/20 steps).
+**Action:** Identify loop-invariant vector operations in time-marching solvers and hoist them out, passing them via existing data structures (like `preprocessed_arrays` dict) to avoid changing function signatures significantly.
