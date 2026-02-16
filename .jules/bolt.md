@@ -5,3 +5,7 @@
 ## 2025-02-12 - [FWH Solver: Component-wise Calculation]
 **Learning:** In FWH solver, calculating vector terms like `L = p*n + rho*(v - U0)*((v) dot n)` by creating full `(N, 3)` arrays for `p*n`, `v-U0`, and `L` introduces significant memory allocation overhead in tight loops. Decomposing these into scalar components (`L1`, `L2`, `L3`) using `(N,)` arrays and broadcasting avoids these allocations and yielded a ~2x speedup for the mathematical operations in benchmarks.
 **Action:** When performing vector arithmetic on large arrays inside loops, prefer component-wise calculations over full vector array allocations if the vector dimension is small (e.g., 3).
+
+## 2025-02-12 - [FWH Solver: PyArrow Engine for I/O]
+**Learning:** The FWH solver (stationary case) is I/O bound because it reads a CSV file at every time step. Switching `pd.read_csv` from the default C engine (`engine='c'`) to the PyArrow engine (`engine='pyarrow'`) yielded a massive ~4.4x speedup in file reading. This requires `pyarrow` to be installed (which is increasingly standard in data stacks) and assumes compatible data types.
+**Action:** For performance-critical CSV reading, especially in loops, use `engine='pyarrow'` and explicitly specify `dtype` to maximize throughput. Ensure `pyarrow` is listed in dependencies.

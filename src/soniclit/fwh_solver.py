@@ -127,9 +127,9 @@ def calculate_source_terms_serial(surf_file : str, preprocessed_data, ambient_pr
 
     if is_permeable == True:
         # Optimized: Skip 'temperature' column (index 12) to reduce I/O overhead
-        surface_data = pd.read_csv(surf_file, usecols = [8, 9, 10, 11, 13], names = ['density','velocity_x','velocity_y','velocity_z','pressure'], dtype=np.float64, engine='c')
+        surface_data = pd.read_csv(surf_file, usecols = [8, 9, 10, 11, 13], names = ['density','velocity_x','velocity_y','velocity_z','pressure'], dtype=np.float64, engine='pyarrow')
     else:
-        surface_data = pd.read_csv(surf_file, usecols = range(13,14), names = ['pressure'], dtype=np.float64, engine='c')
+        surface_data = pd.read_csv(surf_file, usecols = range(13,14), names = ['pressure'], dtype=np.float64, engine='pyarrow')
     
     surface_data = surface_data[f]
 
@@ -243,9 +243,9 @@ def calculate_source_terms_parallel(surf_file : str, preprocessed_data, ambient_
 
     if is_permeable == True:
         # Optimized: Skip 'temperature' column (index 12) to reduce I/O overhead
-        surface_data = pd.read_csv(surf_file, usecols = [8, 9, 10, 11, 13], names = ['density','velocity_x','velocity_y','velocity_z','pressure'])
+        surface_data = pd.read_csv(surf_file, usecols = [8, 9, 10, 11, 13], names = ['density','velocity_x','velocity_y','velocity_z','pressure'], dtype=np.float64, engine='pyarrow')
     else:
-        surface_data = pd.read_csv(surf_file, usecols = range(13,14), names = ['pressure'])
+        surface_data = pd.read_csv(surf_file, usecols = range(13,14), names = ['pressure'], dtype=np.float64, engine='pyarrow')
     
     if isinstance(preprocessed_data, pd.DataFrame):
         preprocessed_data = preprocessed_data[['n1','n2','n3','r1','r2','r3']].to_numpy()
@@ -398,7 +398,7 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
         speed_of_sound = np.sqrt(gamma*Runiv*1e3*ambient_temperature/MW)
 
         #Preprocessing
-        preprocessed_data = pd.read_csv(surf_file+'0.csv', usecols = range(7), names = ['y1','y2','y3','n1','n2','n3','dS'])
+        preprocessed_data = pd.read_csv(surf_file+'0.csv', usecols = range(7), names = ['y1','y2','y3','n1','n2','n3','dS'], dtype=np.float64, engine='pyarrow')
         filt = preprocessed_data['dS']!=0 #key to Filter rows with on-zero area
         preprocessed_data = preprocessed_data[filt]
 
@@ -409,9 +409,9 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
 
         beta = np.sqrt(1-mach_number[0]**2-mach_number[1]**2-mach_number[2]**2)
 
-        p_mean = pd.read_csv(surf_file+'Avg.csv', usecols = range(13,14), names = ['pressure'])
+        p_mean = pd.read_csv(surf_file+'Avg.csv', usecols = range(13,14), names = ['pressure'], dtype=np.float64, engine='pyarrow')
         p_mean = p_mean[filt].reset_index(drop=True)
-        rho_mean = pd.read_csv(surf_file+'Avg.csv', usecols = range(8,9), names = ['density'])
+        rho_mean = pd.read_csv(surf_file+'Avg.csv', usecols = range(8,9), names = ['density'], dtype=np.float64, engine='pyarrow')
         rho_mean = rho_mean[filt].reset_index(drop=True)
         ambient_pressure = p_mean.to_numpy()[:,0]
         ambient_density = rho_mean.to_numpy()[:,0]
@@ -593,7 +593,7 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
     speed_of_sound = np.sqrt(gamma*Runiv*1e3*ambient_temperature/MW)
 
     #Preprocessing
-    preprocessed_data = pd.read_csv(surf_file+'0.csv', usecols = range(7), names = ['y1','y2','y3','n1','n2','n3','dS'])
+    preprocessed_data = pd.read_csv(surf_file+'0.csv', usecols = range(7), names = ['y1','y2','y3','n1','n2','n3','dS'], dtype=np.float64, engine='pyarrow')
     filt = preprocessed_data['dS']!=0 #key to Filter rows with on-zero area
     preprocessed_data = preprocessed_data[filt]
 
@@ -604,9 +604,9 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
 
     beta = np.sqrt(1-mach_number[0]**2-mach_number[1]**2-mach_number[2]**2)
 
-    p_mean = pd.read_csv(surf_file+'Avg.csv', usecols = range(13,14), names = ['pressure'])
+    p_mean = pd.read_csv(surf_file+'Avg.csv', usecols = range(13,14), names = ['pressure'], dtype=np.float64, engine='pyarrow')
     p_mean = p_mean[filt].reset_index(drop=True)
-    rho_mean = pd.read_csv(surf_file+'Avg.csv', usecols = range(8,9), names = ['density'])
+    rho_mean = pd.read_csv(surf_file+'Avg.csv', usecols = range(8,9), names = ['density'], dtype=np.float64, engine='pyarrow')
     rho_mean = rho_mean[filt].reset_index(drop=True)
     ambient_pressure = p_mean.to_numpy()[:,0]
     ambient_density = rho_mean.to_numpy()[:,0]
