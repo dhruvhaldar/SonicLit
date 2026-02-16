@@ -26,7 +26,7 @@ if not os.path.exists(data_path):
 
 has_sample_data = os.path.exists(data_path)
 
-st.set_page_config(page_title="SonicLit Web GUI", layout="wide")
+st.set_page_config(page_title="SonicLit Web GUI", page_icon="🔊", layout="wide")
 
 st.title("SonicLit: Aeroacoustics & Signal Processing")
 
@@ -147,6 +147,7 @@ with tab_fwh:
             st.error("Please upload a ZIP file containing surface data.")
         else:
             try:
+                st.toast("🚀 Starting FWH Solver...", icon="🚀")
                 # Parse inputs
                 obs_loc = ast.literal_eval(obs_loc_str)
                 ma = ast.literal_eval(ma_str)
@@ -205,6 +206,7 @@ with tab_fwh:
                                     res_zip.write(os.path.join(out_dir, f), arcname=f)
 
                             status.update(label="Simulation Complete!", state="complete", expanded=False)
+                            st.toast("✅ Simulation Complete!", icon="✅")
 
                     if prefix is not None:
                         st.success(msg)
