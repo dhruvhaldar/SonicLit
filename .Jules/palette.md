@@ -35,3 +35,7 @@
 ## 2026-02-18 - Multi-Step Process Feedback
 **Learning:** For long-running processes involving multiple stages (extract, configure, run, package), a single `st.spinner` is opaque. Using `st.status` provides transparency and reassures the user that progress is being made.
 **Action:** Replace single-step spinners with `st.status` containers for complex workflows, providing granular updates at each stage.
+
+## 2026-02-18 - Transient Feedback for Process Boundaries
+**Learning:** For processes that may take time or occur while the user is looking elsewhere, a persistent status message might be missed or clutter the UI. Transient toasts provide clear start/end signals without requiring dismissal.
+**Action:** Use `st.toast` with distinct icons (🚀, ✅) to mark the initiation and completion of significant workflows, complementing the detailed `st.status`.
