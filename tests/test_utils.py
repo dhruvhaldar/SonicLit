@@ -3,7 +3,7 @@ import os
 import shutil
 import zipfile
 import tempfile
-from soniclit.utils import safe_extract_zip, validate_zip_contents
+from soniclit.utils import safe_extract_zip, validate_zip_contents, get_column_index
 
 class TestUtils(unittest.TestCase):
     def setUp(self):
@@ -68,6 +68,43 @@ class TestUtils(unittest.TestCase):
             valid, msg = validate_zip_contents(f, "Avg.csv")
             self.assertFalse(valid)
             self.assertIn("Invalid ZIP", msg)
+
+    def test_get_column_index(self):
+        # Test Exact Match
+        cols = ["A", "B", "Time", "D"]
+        idx = get_column_index(cols, ["time"])
+        self.assertEqual(idx, 2)
+
+        # Test Case Insensitive Exact Match
+        cols = ["A", "B", "TIME", "D"]
+        idx = get_column_index(cols, ["time"])
+        self.assertEqual(idx, 2)
+
+        # Test Partial Match
+        cols = ["A", "Pressure (Pa)", "C"]
+        idx = get_column_index(cols, ["pressure"])
+        self.assertEqual(idx, 1)
+
+        # Test No Match
+        cols = ["A", "B", "C"]
+        idx = get_column_index(cols, ["time"])
+        self.assertEqual(idx, 0)
+
+        # Test Priority (Exact over Partial)
+        cols = ["Time (s)", "Time", "C"]
+        idx = get_column_index(cols, ["time"])
+        self.assertEqual(idx, 1) # Should match "Time" exactly
+
+        # Test Empty
+        cols = []
+        idx = get_column_index(cols, ["time"])
+        self.assertEqual(idx, 0)
+
+    def test_get_column_index_pandas(self):
+        import pandas as pd
+        df = pd.DataFrame({'A': [1], 'Time': [2]})
+        idx = get_column_index(df.columns, ["time"])
+        self.assertEqual(idx, 1)
 
 if __name__ == '__main__':
     unittest.main()

@@ -127,3 +127,36 @@ def sanitize_markdown(text):
     # Replace brackets to prevent Markdown link injection [text](url)
     safe_text = safe_text.replace('[', '(').replace(']', ')')
     return safe_text
+
+
+def get_column_index(columns, candidates):
+    """
+    Finds the index of the first column name that matches one of the candidates (case-insensitive).
+    Prioritizes exact matches, then partial matches.
+    Returns 0 if no match found.
+
+    Args:
+        columns (list): List of column names.
+        candidates (list): List of candidate keywords.
+
+    Returns:
+        int: Index of the best match or 0.
+    """
+    if len(columns) == 0:
+        return 0
+
+    columns_lower = [str(c).lower() for c in columns]
+    candidates_lower = [c.lower() for c in candidates]
+
+    # 1. Exact match
+    for cand in candidates_lower:
+        if cand in columns_lower:
+            return columns_lower.index(cand)
+
+    # 2. Partial match
+    for cand in candidates_lower:
+        for i, col in enumerate(columns_lower):
+            if cand in col:
+                return i
+
+    return 0
