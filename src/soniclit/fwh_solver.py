@@ -717,9 +717,40 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
             # pt = 0 * factor_pt1_scaled + Qn_static * factor_pt2_scaled
             pt_static = Qn_static * factor_pt2_scaled
 
+        # Optimization: Calculate distribution indices once outside the loop
+        ave, res = divmod(preprocessed_arrays.shape[0], nproc)
+        counts = [ave + 1 if f < res else ave for f in range(nproc)]
+        offsets = [sum(counts[:i]) for i in range(nproc)]
+
+        my_start = offsets[rank]
+        my_end = my_start + counts[rank]
+
+        # Optimization: Helper to slice dictionary of arrays
+        def get_local_slice(data_dict, start, end):
+            if data_dict is None: return None
+            return {k: v[start:end] if v is not None else None for k, v in data_dict.items()}
+
+        # Optimization: Slice geometric factors to keep only local data
+        factor_pt1_scaled_local = factor_pt1_scaled[my_start:my_end]
+        factor_pt2_scaled_local = factor_pt2_scaled[my_start:my_end]
+        factor_pq1_scaled_local = factor_pq1_scaled[my_start:my_end]
+        factor_pq2_scaled_local = factor_pq2_scaled[my_start:my_end]
+        factor_pq3_scaled_local = factor_pq3_scaled[my_start:my_end]
+
+        j_star_local = j_star[my_start:my_end]
+
+        pt_static_local = None
+        if pt_static is not None:
+            pt_static_local = pt_static[my_start:my_end]
+
         src_t0 = calculate_source_terms_parallel(surf_file+'0.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable, skip_Qn=skip_Qn)
+        src_t0_local = get_local_slice(src_t0, my_start, my_end)
+
         src_t1 = calculate_source_terms_parallel(surf_file+'1.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable, skip_Qn=skip_Qn)
+        src_t1_local = get_local_slice(src_t1, my_start, my_end)
+
         src_t2 = calculate_source_terms_parallel(surf_file+'2.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable, skip_Qn=skip_Qn)
+        src_t2_local = get_local_slice(src_t2, my_start, my_end)
 
         # Optimization: Precompute inverse time step factor and initialize loop variables
         inv_2dt = 0.5 / dt
@@ -727,80 +758,70 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
         Qndot_next = None
 
         for j in range(1,len(source_times)-2):
-            j_adv = j+j_star+1 #advanced time step
-            j_cond = (j_adv >= t_range[0])*(j_adv < t_range[1])
+            j_adv_local = j + j_star_local + 1 #advanced time step
+            j_cond_local = (j_adv_local >= t_range[0])*(j_adv_local < t_range[1])
 
             src_t3 = calculate_source_terms_parallel(surf_file+str(j+2)+'.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable, skip_Qn=skip_Qn)
+            src_t3_local = get_local_slice(src_t3, my_start, my_end)
 
-            Lr1 = src_t1['Lr']
-            Lm1 = src_t1['Lm']
+            Lr1 = src_t1_local['Lr']
+            Lm1 = src_t1_local['Lm']
 
-            Lr2 = src_t2['Lr']
-            Lm2 = src_t2['Lm']
+            Lr2 = src_t2_local['Lr']
+            Lm2 = src_t2_local['Lm']
 
             # Optimized: Reuse Lrdot calculations from previous iteration
             if Lrdot_next is None:
-                Lrdot1 = (-src_t0['Lr']+src_t2['Lr'])*inv_2dt
+                Lrdot1 = (-src_t0_local['Lr']+src_t2_local['Lr'])*inv_2dt
             else:
                 Lrdot1 = Lrdot_next
 
-            Lrdot2 = (-src_t1['Lr']+src_t3['Lr'])*inv_2dt
+            Lrdot2 = (-src_t1_local['Lr']+src_t3_local['Lr'])*inv_2dt
             Lrdot_next = Lrdot2
 
             # Optimized: Use precomputed spline coefficients
-            Lr = sp_c0*src_t0['Lr'] + sp_c1*src_t1['Lr'] + sp_c2*src_t2['Lr'] + sp_c3*src_t3['Lr']
+            Lr = sp_c0*src_t0_local['Lr'] + sp_c1*src_t1_local['Lr'] + sp_c2*src_t2_local['Lr'] + sp_c3*src_t3_local['Lr']
             # Optimized: Linear interpolation as L2 + w*(L1-L2)
             Lrdot = Lrdot2 + interpolation_weight * (Lrdot1 - Lrdot2)
-            Lm = sp_c0*src_t0['Lm'] + sp_c1*src_t1['Lm'] + sp_c2*src_t2['Lm'] + sp_c3*src_t3['Lm']
+            Lm = sp_c0*src_t0_local['Lm'] + sp_c1*src_t1_local['Lm'] + sp_c2*src_t2_local['Lm'] + sp_c3*src_t3_local['Lm']
 
             if not is_permeable:
                 # Optimized: Use precomputed pt_static
-                pt = pt_static
+                pt = pt_static_local
             else:
                 # Optimized: Reuse Qndot calculations from previous iteration
                 if Qndot_next is None:
-                    Qndot1 = (-src_t0['Qn']+src_t2['Qn'])*inv_2dt
+                    Qndot1 = (-src_t0_local['Qn']+src_t2_local['Qn'])*inv_2dt
                 else:
                     Qndot1 = Qndot_next
 
-                Qndot2 = (-src_t1['Qn']+src_t3['Qn'])*inv_2dt
+                Qndot2 = (-src_t1_local['Qn']+src_t3_local['Qn'])*inv_2dt
                 Qndot_next = Qndot2
 
-                Qn = sp_c0*src_t0['Qn'] + sp_c1*src_t1['Qn'] + sp_c2*src_t2['Qn'] + sp_c3*src_t3['Qn']
+                Qn = sp_c0*src_t0_local['Qn'] + sp_c1*src_t1_local['Qn'] + sp_c2*src_t2_local['Qn'] + sp_c3*src_t3_local['Qn']
                 # Optimized: Linear interpolation as L2 + w*(L1-L2)
                 Qndot = Qndot2 + interpolation_weight * (Qndot1 - Qndot2)
 
                 # Optimized: Use precomputed factors
-                pt = Qndot * factor_pt1_scaled + Qn * factor_pt2_scaled
+                pt = Qndot * factor_pt1_scaled_local + Qn * factor_pt2_scaled_local
 
             # Loading component
-            pq = Lrdot * factor_pq1_scaled + (Lr - Lm) * factor_pq2_scaled + Lr * factor_pq3_scaled
+            pq = Lrdot * factor_pq1_scaled_local + (Lr - Lm) * factor_pq2_scaled_local + Lr * factor_pq3_scaled_local
 
-            p = np.array(pt+pq)
-            p *= j_cond
+            p_local = np.array(pt+pq)
+            p_local *= j_cond_local
 
-            n_local = int(len(p)/nproc)
-            ave, res = divmod(p.size, nproc)
-            c = [ave + 1 if f < res else ave for f in range(nproc)]
-            c = np.array(c)
-            index0 = [sum(c[:i]) for i in range(len(c))]
-
-            Psplit = [p[index0[i]:index0[i]+c[i]] for i in range(nproc)]
-            Jsplit = [j_star[index0[i]:index0[i]+c[i]] for i in range(nproc)]
-            cond = [j_cond[index0[i]:index0[i]+c[i]] for i in range(nproc)]
-
-            Psplit = comm.scatter(Psplit, root=0)
-            Jsplit = comm.scatter(Jsplit, root=0)
-            cond = comm.scatter(cond, root=0)
-            # p_act and n_elm are generated locally via bincount
-
-            # Optimized: Use bincount instead of add.at
-            p_act = np.bincount(Jsplit, weights=Psplit, minlength=len_p_act)
-            n_elm = np.bincount(Jsplit, weights=cond, minlength=len_p_act)
+            # Optimized: Use bincount directly on local data
+            p_act = np.bincount(j_star_local, weights=p_local, minlength=len_p_act)
+            n_elm = np.bincount(j_star_local, weights=j_cond_local, minlength=len_p_act)
 
 
             p_act = comm.gather(p_act, root=0)
             n_elm = comm.gather(n_elm, root=0)
+
+            src_t0_local = src_t1_local
+            src_t1_local = src_t2_local
+            src_t2_local = src_t3_local
 
 
             if rank == 0:
