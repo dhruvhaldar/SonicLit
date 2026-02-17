@@ -10,7 +10,7 @@ import tempfile
 # Import SonicLit modules
 import soniclit.fwh_solver as fwh
 import soniclit.signal_processing as sa
-from soniclit.utils import safe_extract_zip, validate_zip_contents, is_file_size_valid, sanitize_markdown
+from soniclit.utils import safe_extract_zip, validate_zip_contents, is_file_size_valid, sanitize_markdown, get_column_index
 
 # Security Constants
 MAX_CSV_SIZE_MB = 10
@@ -257,8 +257,17 @@ with tab_spectral:
                 df = pd.read_csv(uploaded_sig)
                 st.dataframe(df.head())
 
-                time_col = st.selectbox("Select Time Column", df.columns)
-                sig_col = st.selectbox("Select Signal Column", [c for c in df.columns if c != time_col])
+                # Smart default selection
+                time_candidates = ["time", "t", "seconds", "s"]
+                time_idx = get_column_index(df.columns, time_candidates)
+                time_col = st.selectbox("Select Time Column", df.columns, index=time_idx)
+
+                sig_candidates = ["pressure", "p", "signal", "velocity", "u", "amplitude"]
+                available_cols = [c for c in df.columns if c != time_col]
+                # Recalculate index for the filtered list
+                sig_idx = get_column_index(available_cols, sig_candidates)
+
+                sig_col = st.selectbox("Select Signal Column", available_cols, index=sig_idx)
 
                 method = st.selectbox("Method", ["FFT", "Welch"], help="Choose 'FFT' for standard spectrum or 'Welch' for smoothed periodogram.")
 
