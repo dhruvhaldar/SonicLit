@@ -507,6 +507,10 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
             src_t1 = calculate_source_terms_serial(surf_file+'1.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable, skip_Qn=skip_Qn)
             src_t2 = calculate_source_terms_serial(surf_file+'2.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable, skip_Qn=skip_Qn)
 
+            # Optimization: Precompute inverse time step factor and initialize loop variables
+            inv_2dt = 0.5 / dt
+            Lrdot_next = None
+            Qndot_next = None
 
             for j in range(1,len(source_times)-2):
                 j_adv = j+j_star+1 #advanced time step
@@ -526,12 +530,19 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
                 Lm2 = src_t2['Lm']
                 Lm3 = src_t3['Lm']
 
-                Lrdot1 = (-Lr0+Lr2)/(2*dt)
-                Lrdot2 = (-Lr1+Lr3)/(2*dt)
+                # Optimized: Reuse Lrdot calculations from previous iteration
+                if Lrdot_next is None:
+                    Lrdot1 = (-Lr0+Lr2)*inv_2dt
+                else:
+                    Lrdot1 = Lrdot_next
+
+                Lrdot2 = (-Lr1+Lr3)*inv_2dt
+                Lrdot_next = Lrdot2
 
                 # Optimized: Use precomputed spline coefficients
                 Lr = sp_c0*Lr0 + sp_c1*Lr1 + sp_c2*Lr2 + sp_c3*Lr3
-                Lrdot = one_minus_interpolation_weight*Lrdot2+interpolation_weight*Lrdot1
+                # Optimized: Linear interpolation as L2 + w*(L1-L2) to save mults
+                Lrdot = Lrdot2 + interpolation_weight * (Lrdot1 - Lrdot2)
                 Lm = sp_c0*Lm0 + sp_c1*Lm1 + sp_c2*Lm2 + sp_c3*Lm3
 
                 if not is_permeable:
@@ -543,11 +554,18 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
                     Qn2 = src_t2['Qn']
                     Qn3 = src_t3['Qn']
 
-                    Qndot1 = (-Qn0+Qn2)/(2*dt)
-                    Qndot2 = (-Qn1+Qn3)/(2*dt)
+                    # Optimized: Reuse Qndot calculations from previous iteration
+                    if Qndot_next is None:
+                        Qndot1 = (-Qn0+Qn2)*inv_2dt
+                    else:
+                        Qndot1 = Qndot_next
+
+                    Qndot2 = (-Qn1+Qn3)*inv_2dt
+                    Qndot_next = Qndot2
 
                     Qn = sp_c0*Qn0 + sp_c1*Qn1 + sp_c2*Qn2 + sp_c3*Qn3
-                    Qndot = one_minus_interpolation_weight*Qndot2+interpolation_weight*Qndot1
+                    # Optimized: Linear interpolation as L2 + w*(L1-L2)
+                    Qndot = Qndot2 + interpolation_weight * (Qndot1 - Qndot2)
 
                     # Optimized: Use precomputed factors
                     pt = Qndot * factor_pt1_scaled + Qn * factor_pt2_scaled
@@ -703,6 +721,10 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
         src_t1 = calculate_source_terms_parallel(surf_file+'1.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable, skip_Qn=skip_Qn)
         src_t2 = calculate_source_terms_parallel(surf_file+'2.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable, skip_Qn=skip_Qn)
 
+        # Optimization: Precompute inverse time step factor and initialize loop variables
+        inv_2dt = 0.5 / dt
+        Lrdot_next = None
+        Qndot_next = None
 
         for j in range(1,len(source_times)-2):
             j_adv = j+j_star+1 #advanced time step
@@ -716,23 +738,37 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
             Lr2 = src_t2['Lr']
             Lm2 = src_t2['Lm']
 
-            Lrdot1 = (-src_t0['Lr']+src_t2['Lr'])/(2*dt)
-            Lrdot2 = (-src_t1['Lr']+src_t3['Lr'])/(2*dt)
+            # Optimized: Reuse Lrdot calculations from previous iteration
+            if Lrdot_next is None:
+                Lrdot1 = (-src_t0['Lr']+src_t2['Lr'])*inv_2dt
+            else:
+                Lrdot1 = Lrdot_next
+
+            Lrdot2 = (-src_t1['Lr']+src_t3['Lr'])*inv_2dt
+            Lrdot_next = Lrdot2
 
             # Optimized: Use precomputed spline coefficients
             Lr = sp_c0*src_t0['Lr'] + sp_c1*src_t1['Lr'] + sp_c2*src_t2['Lr'] + sp_c3*src_t3['Lr']
-            Lrdot = one_minus_interpolation_weight*Lrdot2+interpolation_weight*Lrdot1
+            # Optimized: Linear interpolation as L2 + w*(L1-L2)
+            Lrdot = Lrdot2 + interpolation_weight * (Lrdot1 - Lrdot2)
             Lm = sp_c0*src_t0['Lm'] + sp_c1*src_t1['Lm'] + sp_c2*src_t2['Lm'] + sp_c3*src_t3['Lm']
 
             if not is_permeable:
                 # Optimized: Use precomputed pt_static
                 pt = pt_static
             else:
-                Qndot1 = (-src_t0['Qn']+src_t2['Qn'])/(2*dt)
-                Qndot2 = (-src_t1['Qn']+src_t3['Qn'])/(2*dt)
+                # Optimized: Reuse Qndot calculations from previous iteration
+                if Qndot_next is None:
+                    Qndot1 = (-src_t0['Qn']+src_t2['Qn'])*inv_2dt
+                else:
+                    Qndot1 = Qndot_next
+
+                Qndot2 = (-src_t1['Qn']+src_t3['Qn'])*inv_2dt
+                Qndot_next = Qndot2
 
                 Qn = sp_c0*src_t0['Qn'] + sp_c1*src_t1['Qn'] + sp_c2*src_t2['Qn'] + sp_c3*src_t3['Qn']
-                Qndot = one_minus_interpolation_weight*Qndot2+interpolation_weight*Qndot1
+                # Optimized: Linear interpolation as L2 + w*(L1-L2)
+                Qndot = Qndot2 + interpolation_weight * (Qndot1 - Qndot2)
 
                 # Optimized: Use precomputed factors
                 pt = Qndot * factor_pt1_scaled + Qn * factor_pt2_scaled
