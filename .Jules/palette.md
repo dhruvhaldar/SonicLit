@@ -39,3 +39,7 @@
 ## 2026-02-18 - Transient Feedback for Process Boundaries
 **Learning:** For processes that may take time or occur while the user is looking elsewhere, a persistent status message might be missed or clutter the UI. Transient toasts provide clear start/end signals without requiring dismissal.
 **Action:** Use `st.toast` with distinct icons (🚀, ✅) to mark the initiation and completion of significant workflows, complementing the detailed `st.status`.
+
+## 2026-02-18 - Replacing Technical Inputs with Visual Controls
+**Learning:** For inputs expecting Python literals (like vectors `[x,y,z]`), replacing text inputs with structured number inputs (e.g., columns of `st.number_input`) dramatically reduces syntax errors and improves accessibility, while maintaining backend compatibility via string construction.
+**Action:** Replace `st.text_input` for vector/list data with `st.columns` + `st.number_input` whenever the structure is fixed (e.g., 3D vectors), and offer a toggle for advanced/variable-length inputs.
