@@ -73,7 +73,17 @@ with tab_fwh:
                         help="Download sample data to test the solver."
                     )
 
-        obs_loc_str = st.text_input("Observer Locations (e.g. [[0,0,10]])", value="[[0.0, 0.0, 1.0]]", max_chars=5000, help="List of coordinates [x,y,z]. Example: [[0, 0, 10], [0, 10, 10]]")
+        st.markdown("**Observer Location**")
+        obs_mode = st.radio("Observer Input Mode", ["Single Point", "Coordinate List"], horizontal=True, label_visibility="collapsed")
+
+        if obs_mode == "Single Point":
+            oc1, oc2, oc3 = st.columns(3)
+            with oc1: ox = st.number_input("X", value=0.0, step=1.0, format="%.1f", help="X Coordinate")
+            with oc2: oy = st.number_input("Y", value=0.0, step=1.0, format="%.1f", help="Y Coordinate")
+            with oc3: oz = st.number_input("Z", value=1.0, step=1.0, format="%.1f", help="Z Coordinate")
+            obs_loc_str = str([[ox, oy, oz]])
+        else:
+            obs_loc_str = st.text_input("Coordinates List", value="[[0.0, 0.0, 1.0]]", max_chars=5000, help="List of coordinates [x,y,z]. Example: [[0, 0, 10], [0, 10, 10]]")
 
         # Validation for obs_loc
         obs_valid = True
@@ -111,7 +121,12 @@ with tab_fwh:
         total_sim_time = dt_val * steps_val
         st.caption(f"⏱️ Total Simulation Time: **{total_sim_time:.4f} s**")
 
-        ma_str = st.text_input("Mach Number (e.g. [0.1, 0, 0])", value="[0.0, 0.0, 0.0]", max_chars=5000, help="Mach vector [Mx, My, Mz]. Example: [0.1, 0.0, 0.0]")
+        st.markdown("**Mach Vector Components**")
+        mc1, mc2, mc3 = st.columns(3)
+        with mc1: mx = st.number_input("Mx", value=0.0, step=0.1, format="%.2f", help="Mach X")
+        with mc2: my = st.number_input("My", value=0.0, step=0.1, format="%.2f", help="Mach Y")
+        with mc3: mz = st.number_input("Mz", value=0.0, step=0.1, format="%.2f", help="Mach Z")
+        ma_str = str([mx, my, mz])
 
         # Validation for ma
         ma_valid = True
