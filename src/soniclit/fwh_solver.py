@@ -203,10 +203,88 @@ def calculate_source_terms_serial(surf_file : str, preprocessed_data, ambient_pr
     
     return {'Qn': Qn, 'Lm': Lm, 'Lr': Lr}
 
+def _calculate_source_terms_local(surface_data_local, preprocessed_data_local, ambient_density_local, U0, mach_number, is_permeable, skip_Qn):
+    """
+    Calculates FWH source terms (Qn, Lm, Lr) from LOCAL surface data slices.
+    Internal helper for parallel implementation to avoid redundant scatters.
+
+    Parameters
+    ----------
+    surface_data_local : numpy.ndarray
+        Local slice of surface data (pressure, density, velocity).
+    preprocessed_data_local : numpy.ndarray
+        Local slice of preprocessed geometry data (n, r).
+    ambient_density_local : float or numpy.ndarray
+        Ambient density (scalar or local slice).
+    U0 : numpy.ndarray
+        Speed of sound * mach number.
+    mach_number : numpy.ndarray
+        Mach number vector.
+    is_permeable : bool
+        Flag for permeable surface.
+    skip_Qn : bool
+        If True, skips Qn calculation and returns zeros for Qn.
+
+    Returns
+    -------
+    dict
+        Dictionary containing local 'Qn', 'Lm', 'Lr' arrays.
+    """
+    # Optimized: Avoid creating large (N,3) arrays by using component-wise operations
+    surfS = surface_data_local
+    preS = preprocessed_data_local
+    rho0S = ambient_density_local
+
+    # Preallocate output arrays for Lm and Lr (Qn is computed directly)
+    # outS structure: [Qn, Lm, Lr]
+    # But we return dict, so just compute components.
+
+    n_local = surfS.shape[0]
+    Qn = np.zeros(n_local)
+
+    if is_permeable:
+        # surfS columns: [density, vx, vy, vz, pressure]
+        # preS columns: [n1, n2, n3, r1, r2, r3]
+
+        # Calculate v dot n (N,)
+        v_dot_n = surfS[:,1]*preS[:,0] + surfS[:,2]*preS[:,1] + surfS[:,3]*preS[:,2]
+
+        # Calculate rho * (v dot n) (N,)
+        rho_v_dot_n = surfS[:,0] * v_dot_n
+
+        if not skip_Qn:
+            # Calculate U0 dot n (N,)
+            U0_dot_n = U0[0]*preS[:,0] + U0[1]*preS[:,1] + U0[2]*preS[:,2]
+
+            # Qn = -rho0 * (U0 dot n) + rho * (v dot n)
+            Qn = -rho0S * U0_dot_n + rho_v_dot_n
+
+        # L = p*n + rho*(v - U0)*(v dot n)
+        #   = p*n + rho_v_dot_n * (v - U0)
+
+        L1 = surfS[:,4]*preS[:,0] + rho_v_dot_n * (surfS[:,1]-U0[0])
+        L2 = surfS[:,4]*preS[:,1] + rho_v_dot_n * (surfS[:,2]-U0[1])
+        L3 = surfS[:,4]*preS[:,2] + rho_v_dot_n * (surfS[:,3]-U0[2])
+
+    else:
+        # surfS columns: [pressure]
+        if not skip_Qn:
+            Qn = (-rho0S*U0[0])*preS[:,0] + (-rho0S*U0[1])*preS[:,1] + (-rho0S*U0[2])*preS[:,2]
+
+        L1 = surfS[:,0]*preS[:,0]
+        L2 = surfS[:,0]*preS[:,1]
+        L3 = surfS[:,0]*preS[:,2]
+
+    Lm = -L1*mach_number[0] - L2*mach_number[1] - L3*mach_number[2]
+    Lr = L1*preS[:,3] + L2*preS[:,4] + L3*preS[:,5]
+
+    return {'Qn': Qn, 'Lm': Lm, 'Lr': Lr}
+
 #Parallel Implementation
 def calculate_source_terms_parallel(surf_file : str, preprocessed_data, ambient_pressure, ambient_density, speed_of_sound, mach_number, f, is_permeable, skip_Qn=False):
     """
     Calculates FWH source terms (Qn, Lm, Lr) from surface data (Parallel implementation).
+    This function handles data distribution (scatter/gather) for backward compatibility.
 
     Parameters
     ----------
@@ -231,8 +309,8 @@ def calculate_source_terms_parallel(surf_file : str, preprocessed_data, ambient_
 
     Returns
     -------
-    pandas.DataFrame
-        DataFrame containing Qn, Lm, Lr terms.
+    dict
+        Dictionary containing Qn, Lm, Lr terms (global).
     
     Raises
     ------
@@ -254,8 +332,6 @@ def calculate_source_terms_parallel(surf_file : str, preprocessed_data, ambient_
     if isinstance(preprocessed_data, pd.DataFrame):
         preprocessed_data = preprocessed_data[['n1','n2','n3','r1','r2','r3']].to_numpy()
 
-    out = np.zeros([len(preprocessed_data),3])
-    
     surface_data = surface_data[f]
     U0 = speed_of_sound*mach_number
     surface_data['pressure'] = surface_data['pressure']-ambient_pressure
@@ -268,56 +344,26 @@ def calculate_source_terms_parallel(surf_file : str, preprocessed_data, ambient_
     
     preS = [preprocessed_data[index0[i]:index0[i]+c[i],:] for i in range(nproc)]
     surfS = [surface_data[index0[i]:index0[i]+c[i],:] for i in range(nproc)]
-    outS = [out[index0[i]:index0[i]+c[i],:] for i in range(nproc)]
     rho0S = [ambient_density[index0[i]:index0[i]+c[i]] for i in range(nproc)]
+
+    # Scatter data
     preS = comm.scatter(preS, root=0)
     surfS = comm.scatter(surfS, root=0)
-    outS = comm.scatter(outS, root=0)
     rho0S = comm.scatter(rho0S, root=0)
     
     U0 = comm.bcast(U0, root=0)
     is_permeable = comm.bcast(is_permeable, root=0)
     mach_number = comm.bcast(mach_number, root=0)
     skip_Qn = comm.bcast(skip_Qn, root=0)
+
+    # Perform calculation on local data
+    local_res = _calculate_source_terms_local(surfS, preS, rho0S, U0, mach_number, is_permeable, skip_Qn)
     
-    if is_permeable == True:
-        # Optimized: Avoid redundant calculations of v dot n and U0 dot n
-
-        # Calculate v dot n (N,)
-        v_dot_n = surfS[:,1]*preS[:,0] + surfS[:,2]*preS[:,1] + surfS[:,3]*preS[:,2]
-
-        # Calculate rho * (v dot n) (N,)
-        rho_v_dot_n = surfS[:,0] * v_dot_n
-
-        if not skip_Qn:
-            # Calculate U0 dot n (N,)
-            U0_dot_n = U0[0]*preS[:,0] + U0[1]*preS[:,1] + U0[2]*preS[:,2]
-
-            # Qn = -rho0 * (U0 dot n) + rho * (v dot n)
-            outS[:,0] = -rho0S * U0_dot_n + rho_v_dot_n
-        else:
-            outS[:,0] = 0.0
-
-        # L = p*n + rho*(v - U0)*(v dot n)
-        #   = p*n + rho_v_dot_n * (v - U0)
-
-        L1 = surfS[:,4]*preS[:,0] + rho_v_dot_n * (surfS[:,1]-U0[0])
-        L2 = surfS[:,4]*preS[:,1] + rho_v_dot_n * (surfS[:,2]-U0[1])
-        L3 = surfS[:,4]*preS[:,2] + rho_v_dot_n * (surfS[:,3]-U0[2])
-        
-    else:
-        if not skip_Qn:
-            outS[:,0] = (-rho0S*U0[0])*preS[:,0] + (-rho0S*U0[1])*preS[:,1] + (-rho0S*U0[2])*preS[:,2]
-        else:
-            outS[:,0] = 0.0
-
-        L1 = surfS[:,0]*preS[:,0]
-        L2 = surfS[:,0]*preS[:,1]
-        L3 = surfS[:,0]*preS[:,2]
-    
-    outS[:,1] = -L1*mach_number[0] - L2*mach_number[1] - L3*mach_number[2]
-    outS[:,2] = L1*preS[:,3] + L2*preS[:,4] + L3*preS[:,5]
-    
+    # Pack results for gather
+    outS = np.zeros((len(preS), 3))
+    outS[:, 0] = local_res['Qn']
+    outS[:, 1] = local_res['Lm']
+    outS[:, 2] = local_res['Lr']
     
     outS = comm.gather(outS, root=0)
     outS = comm.bcast(outS,root=0)
@@ -725,10 +771,26 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
         my_start = offsets[rank]
         my_end = my_start + counts[rank]
 
-        # Optimization: Helper to slice dictionary of arrays
-        def get_local_slice(data_dict, start, end):
-            if data_dict is None: return None
-            return {k: v[start:end] if v is not None else None for k, v in data_dict.items()}
+        # Optimization: Helper to read and slice surface data locally
+        def get_local_surface_data(filename, mask, start, end, is_perm, amb_p):
+            if is_perm:
+                df = pd.read_csv(filename, usecols=[8, 9, 10, 11, 13], names=['density','velocity_x','velocity_y','velocity_z','pressure'], dtype=np.float64, engine='pyarrow')
+            else:
+                df = pd.read_csv(filename, usecols=range(13,14), names=['pressure'], dtype=np.float64, engine='pyarrow')
+
+            # Apply mask (dS != 0)
+            df = df[mask]
+
+            # Subtract ambient pressure
+            df['pressure'] = df['pressure'] - amb_p
+
+            # Convert to numpy and slice
+            data = df.to_numpy()
+            return data[start:end]
+
+        # Optimization: Precompute local slices of static data
+        preprocessed_local = preprocessed_arrays[my_start:my_end]
+        ambient_density_local = ambient_density[my_start:my_end]
 
         # Optimization: Slice geometric factors to keep only local data
         factor_pt1_scaled_local = factor_pt1_scaled[my_start:my_end]
@@ -743,14 +805,17 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
         if pt_static is not None:
             pt_static_local = pt_static[my_start:my_end]
 
-        src_t0 = calculate_source_terms_parallel(surf_file+'0.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable, skip_Qn=skip_Qn)
-        src_t0_local = get_local_slice(src_t0, my_start, my_end)
+        U0_vec = speed_of_sound * mach_number
 
-        src_t1 = calculate_source_terms_parallel(surf_file+'1.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable, skip_Qn=skip_Qn)
-        src_t1_local = get_local_slice(src_t1, my_start, my_end)
+        # Initialize t0, t1, t2 using local logic
+        surf0 = get_local_surface_data(surf_file+'0.csv', filt, my_start, my_end, is_permeable, ambient_pressure)
+        src_t0_local = _calculate_source_terms_local(surf0, preprocessed_local, ambient_density_local, U0_vec, mach_number, is_permeable, skip_Qn)
 
-        src_t2 = calculate_source_terms_parallel(surf_file+'2.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable, skip_Qn=skip_Qn)
-        src_t2_local = get_local_slice(src_t2, my_start, my_end)
+        surf1 = get_local_surface_data(surf_file+'1.csv', filt, my_start, my_end, is_permeable, ambient_pressure)
+        src_t1_local = _calculate_source_terms_local(surf1, preprocessed_local, ambient_density_local, U0_vec, mach_number, is_permeable, skip_Qn)
+
+        surf2 = get_local_surface_data(surf_file+'2.csv', filt, my_start, my_end, is_permeable, ambient_pressure)
+        src_t2_local = _calculate_source_terms_local(surf2, preprocessed_local, ambient_density_local, U0_vec, mach_number, is_permeable, skip_Qn)
 
         # Optimization: Precompute inverse time step factor and initialize loop variables
         inv_2dt = 0.5 / dt
@@ -761,8 +826,9 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
             j_adv_local = j + j_star_local + 1 #advanced time step
             j_cond_local = (j_adv_local >= t_range[0])*(j_adv_local < t_range[1])
 
-            src_t3 = calculate_source_terms_parallel(surf_file+str(j+2)+'.csv', preprocessed_arrays, ambient_pressure, ambient_density, speed_of_sound, mach_number, filt, is_permeable, skip_Qn=skip_Qn)
-            src_t3_local = get_local_slice(src_t3, my_start, my_end)
+            # Optimized: Read and compute locally, skipping MPI
+            surf3 = get_local_surface_data(surf_file+str(j+2)+'.csv', filt, my_start, my_end, is_permeable, ambient_pressure)
+            src_t3_local = _calculate_source_terms_local(surf3, preprocessed_local, ambient_density_local, U0_vec, mach_number, is_permeable, skip_Qn)
 
             Lr1 = src_t1_local['Lr']
             Lm1 = src_t1_local['Lm']
@@ -826,12 +892,16 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
 
             if rank == 0:
 
-                acoustic_pressure[min(j_adv):max(j_adv)+1] += sum(p_act)
-                count[min(j_adv):max(j_adv)+1] += sum(n_elm)
+                # Reconstruct full j_adv for indexing on Rank 0
+                j_adv_full = j + j_star + 1
+                p_sum = sum(p_act)
+                n_sum = sum(n_elm)
 
-                src_t0 = src_t1.copy()
-                src_t1 = src_t2.copy()
-                src_t2 = src_t3.copy()
+                start_idx = min(j_adv_full)
+                end_idx = max(j_adv_full) + 1
+
+                acoustic_pressure[start_idx:end_idx] += p_sum
+                count[start_idx:end_idx] += n_sum
 
         if rank == 0:
             fig, ax = plt.subplots( nrows=1, ncols=1, figsize = [12,8]  )  # create figure & 1 axis
