@@ -73,17 +73,17 @@ with tab_fwh:
                         help="Download sample data to test the solver."
                     )
 
-        st.markdown("**Observer Location**")
-        obs_mode = st.radio("Observer Input Mode", ["Single Point", "Coordinate List"], horizontal=True, label_visibility="collapsed")
+        obs_mode = st.radio("Observer Location Strategy", ["Single Point", "Coordinate List"], horizontal=True, help="Choose how to define observer locations.")
 
         if obs_mode == "Single Point":
             oc1, oc2, oc3 = st.columns(3)
-            with oc1: ox = st.number_input("X", value=0.0, step=1.0, format="%.1f", help="X Coordinate")
-            with oc2: oy = st.number_input("Y", value=0.0, step=1.0, format="%.1f", help="Y Coordinate")
-            with oc3: oz = st.number_input("Z", value=1.0, step=1.0, format="%.1f", help="Z Coordinate")
+            with oc1: ox = st.number_input("Observer X (m)", value=0.0, step=1.0, format="%.1f", help="X coordinate of the observer relative to the source.")
+            with oc2: oy = st.number_input("Observer Y (m)", value=0.0, step=1.0, format="%.1f", help="Y coordinate of the observer relative to the source.")
+            with oc3: oz = st.number_input("Observer Z (m)", value=1.0, step=1.0, format="%.1f", help="Z coordinate of the observer relative to the source.")
             obs_loc_str = str([[ox, oy, oz]])
         else:
             obs_loc_str = st.text_input("Coordinates List", value="[[0.0, 0.0, 1.0]]", max_chars=5000, help="List of coordinates [x,y,z]. Example: [[0, 0, 10], [0, 10, 10]]")
+            st.caption("Format: `[[x1, y1, z1], [x2, y2, z2], ...]`")
 
         # Validation for obs_loc
         obs_valid = True
@@ -123,9 +123,9 @@ with tab_fwh:
 
         st.markdown("**Mach Vector Components**")
         mc1, mc2, mc3 = st.columns(3)
-        with mc1: mx = st.number_input("Mx", value=0.0, step=0.1, format="%.2f", help="Mach X")
-        with mc2: my = st.number_input("My", value=0.0, step=0.1, format="%.2f", help="Mach Y")
-        with mc3: mz = st.number_input("Mz", value=0.0, step=0.1, format="%.2f", help="Mach Z")
+        with mc1: mx = st.number_input("Mach X (Mx)", value=0.0, step=0.1, format="%.2f", help="Flow Mach number in X direction.")
+        with mc2: my = st.number_input("Mach Y (My)", value=0.0, step=0.1, format="%.2f", help="Flow Mach number in Y direction.")
+        with mc3: mz = st.number_input("Mach Z (Mz)", value=0.0, step=0.1, format="%.2f", help="Flow Mach number in Z direction.")
         ma_str = str([mx, my, mz])
 
         # Validation for ma
