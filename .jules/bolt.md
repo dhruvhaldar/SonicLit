@@ -9,3 +9,7 @@
 ## 2026-02-05 - MPI Loop Optimization
 **Learning:** In MPI-parallel loops where workers receive full data arrays (e.g. via `gather` then `bcast`) but only process a local partition, re-scattering the local partition (which they already have access to) is a massive performance anti-pattern.
 **Action:** Slice global arrays into local partitions immediately upon receipt/creation, and perform all subsequent operations on local slices. Avoid redundant `comm.scatter` calls inside loops.
+
+## 2026-02-19 - FWH Solver Optimization: Matplotlib Bottleneck
+**Learning:** Optimizing the core numerical solver (file I/O + spline interpolation) yielded a 6x speedup for the solver itself, but the total runtime was still dominated (80%) by Matplotlib figure generation (PNG saving) which happens per observer. The solver optimization was masked in simple benchmarks by the heavy visualization overhead.
+**Action:** When optimizing scientific code with integrated visualization, verify if the visualization (I/O, rendering) is the bottleneck. Consider separating computation and visualization to measure true impact.
