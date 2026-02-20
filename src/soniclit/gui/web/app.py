@@ -73,8 +73,7 @@ with tab_fwh:
                         help="Download sample data to test the solver."
                     )
 
-        st.markdown("**Observer Location**")
-        obs_mode = st.radio("Observer Input Mode", ["Single Point", "Coordinate List"], horizontal=True, label_visibility="collapsed")
+        obs_mode = st.radio("**Observer Location**", ["Single Point", "Coordinate List"], horizontal=True, help="Choose how to define observer coordinates.")
 
         if obs_mode == "Single Point":
             oc1, oc2, oc3 = st.columns(3)
@@ -109,6 +108,8 @@ with tab_fwh:
                             st.error("Coordinates must be numbers.")
                             obs_valid = False
                             break
+                    if obs_valid:
+                        st.caption(f"✅ Ready to compute for **{len(val)}** observer(s).")
         except:
             st.error("Invalid format. Use Python list syntax, e.g. [[0,0,10]]")
             obs_valid = False
@@ -271,6 +272,7 @@ with tab_spectral:
             else:
                 df = pd.read_csv(uploaded_sig)
                 st.dataframe(df.head())
+                st.caption(f"✅ Loaded **{len(df)}** rows, **{len(df.columns)}** columns.")
 
                 # Smart default selection
                 time_candidates = ["time", "t", "seconds", "s"]
