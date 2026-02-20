@@ -766,10 +766,31 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
     ambient_pressure = p_mean.to_numpy()[:,0]
     ambient_density = rho_mean.to_numpy()[:,0]
 
-    for idx, xo in enumerate(observer_locations):
+    # Determine local workload based on surface elements
+    n_elements = geom_y.shape[0]
+    ave, res = divmod(n_elements, nproc)
+    counts = [ave + 1 if f < res else ave for f in range(nproc)]
+    offsets = [sum(counts[:i]) for i in range(nproc)]
 
-        #calculation of time independent quantities
-        diff = xo - geom_y
+    my_start = offsets[rank]
+    my_end = my_start + counts[rank]
+
+    # Slice geometry to local partition
+    geom_y_local = geom_y[my_start:my_end]
+    geom_n_local = geom_n[my_start:my_end]
+    geom_dS_local = geom_dS[my_start:my_end]
+    ambient_density_local = ambient_density[my_start:my_end]
+
+    # --- Precompute Observer-Dependent Variables (Locally) ---
+    n_obs = len(observer_locations)
+    obs_data = [] # List to store data for each observer (local slices)
+
+    M2 = np.sum(mach_number**2)
+    inv_4pi = 1.0 / (4.0 * np.pi)
+
+    for idx, xo in enumerate(observer_locations):
+        # Calculate time independent quantities (using LOCAL geometry)
+        diff = xo - geom_y_local
         Mr0 = np.dot(diff, mach_number)
         R0 = np.linalg.norm(diff, axis=1)
 
@@ -778,224 +799,243 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
         R = (-Mr0+Rstar)/(beta**2)
 
         # Radiation vector
-        # Optimized: Simplify r_vec calculation: (-M*R + diff)/R = -M + diff/R
         r_vec = diff / R[:, np.newaxis] - mach_number
         Mr = np.dot(r_vec, -mach_number)
 
-        # Optimized: Combine n and r for parallel distribution (Nx6 array)
-        preprocessed_arrays = np.hstack((geom_n, r_vec))
-
         tau = np.array(R/speed_of_sound) #travelling time of sound from all sources
-        t_o = source_times+min(tau) #observer times
-        tau_star = tau-min(tau)
+
+        # Global synchronization for time arrays
+        local_min_tau = np.min(tau) if len(tau) > 0 else float('inf')
+        global_min_tau = comm.allreduce(local_min_tau, op=MPI.MIN)
+
+        t_o = source_times + global_min_tau #observer times
+        tau_star = tau - global_min_tau # consistent delay
+
         interpolation_weight = (tau_star%dt)/dt
-        # Optimized: Vectorized calculation instead of list comprehension
         j_star = (tau_star // dt).astype(int)
 
-        t_range = [int((max(tau)-min(tau))//dt)+2,len(t_o)-1]
+        local_max_tau = np.max(tau) if len(tau) > 0 else float('-inf')
+        global_max_tau = comm.allreduce(local_max_tau, op=MPI.MAX)
 
+        t_range = [int((global_max_tau - global_min_tau)//dt)+2, len(t_o)-1]
+        max_j_star_global = int((global_max_tau - global_min_tau)//dt)
+        D = (max_j_star_global-1)*(max_j_star_global>1)
 
-        D = (max(j_star)-1)*(max(j_star)>1) #number of void elements to be added at end for satisfying j_adv within range
         acoustic_pressure = np.zeros(len(t_o)+D)
         count = np.zeros(len(t_o)+D)
+        len_p_act = max_j_star_global + 1
 
-        # Optimization: Precompute size for bincount/arrays
-        len_p_act = np.max(j_star) + 1
-
-        # Optimization: Precompute geometric factors outside the loop
-        M2 = np.sum(mach_number**2)
         one_minus_Mr = 1.0 - Mr
         one_minus_Mr_sq = one_minus_Mr**2
         one_minus_Mr_cu = one_minus_Mr**3
 
-        # Optimization: Precompute spline coefficients
         sp_c0, sp_c1, sp_c2, sp_c3 = _precompute_spline_coeffs(interpolation_weight)
 
-        factor_pt1 = geom_dS / (R * one_minus_Mr_sq)
-        factor_pt2 = (geom_dS * (Mr - M2)) / (R**2 * one_minus_Mr_cu)
+        factor_pt1 = geom_dS_local / (R * one_minus_Mr_sq)
+        factor_pt2 = (geom_dS_local * (Mr - M2)) / (R**2 * one_minus_Mr_cu)
         factor_pq1 = factor_pt1 / speed_of_sound
-        factor_pq2 = geom_dS / (R**2 * one_minus_Mr_sq)
+        factor_pq2 = geom_dS_local / (R**2 * one_minus_Mr_sq)
         factor_pq3 = factor_pt2
-        inv_4pi = 1.0 / (4.0 * np.pi)
 
-        # Optimization: Precompute scaled factors to reduce mults inside loop
         factor_pt1_scaled = factor_pt1 * inv_4pi
         factor_pt2_scaled = factor_pt2 * (speed_of_sound * inv_4pi)
         factor_pq1_scaled = factor_pq1 * inv_4pi
         factor_pq2_scaled = factor_pq2 * inv_4pi
         factor_pq3_scaled = factor_pq3 * inv_4pi
 
-        one_minus_interpolation_weight = 1.0 - interpolation_weight
-
-        # Optimization: Precompute Qn_static for impermeable surfaces
-        Qn_static = None
-        skip_Qn = False
+        # Static pt for impermeable
         pt_static = None
-
         if not is_permeable:
-            # Calculate Qn_static: (-rho0*U0) dot n
-            U0_static = speed_of_sound * mach_number
-            Qn_static = (-ambient_density * U0_static[0]) * geom_n[:, 0] + \
-                        (-ambient_density * U0_static[1]) * geom_n[:, 1] + \
-                        (-ambient_density * U0_static[2]) * geom_n[:, 2]
-            skip_Qn = True
+             U0_static = speed_of_sound * mach_number
+             Qn_static = (-ambient_density_local * U0_static[0]) * geom_n_local[:, 0] + \
+                        (-ambient_density_local * U0_static[1]) * geom_n_local[:, 1] + \
+                        (-ambient_density_local * U0_static[2]) * geom_n_local[:, 2]
+             pt_static = Qn_static * factor_pt2_scaled
 
-            # Precompute pt component since Qn is static and Qndot is 0
-            # pt = 0 * factor_pt1_scaled + Qn_static * factor_pt2_scaled
-            pt_static = Qn_static * factor_pt2_scaled
+        obs_data.append({
+            'r_vec': r_vec,
+            'interpolation_weight': interpolation_weight,
+            'j_star': j_star,
+            't_range': t_range,
+            'acoustic_pressure': acoustic_pressure,
+            'count': count,
+            'len_p_act': len_p_act,
+            'sp_coeffs': (sp_c0, sp_c1, sp_c2, sp_c3),
+            'factors': (factor_pt1_scaled, factor_pt2_scaled, factor_pq1_scaled, factor_pq2_scaled, factor_pq3_scaled),
+            'pt_static': pt_static,
+            't_o': t_o,
+            'Lrdot_next': None
+        })
 
-        # Optimization: Calculate distribution indices once outside the loop
-        ave, res = divmod(preprocessed_arrays.shape[0], nproc)
-        counts = [ave + 1 if f < res else ave for f in range(nproc)]
-        offsets = [sum(counts[:i]) for i in range(nproc)]
+    # Helper to read local surface data slice
+    def get_local_surface_data(filename, mask, start, end, is_perm, amb_p):
+        if is_perm:
+            df = pd.read_csv(filename, usecols=[8, 9, 10, 11, 13], names=['density','velocity_x','velocity_y','velocity_z','pressure'], dtype=np.float64, engine='pyarrow')
+        else:
+            df = pd.read_csv(filename, usecols=range(13,14), names=['pressure'], dtype=np.float64, engine='pyarrow')
+        df = df[mask]
+        df['pressure'] = df['pressure'] - amb_p
+        return df.to_numpy()[start:end]
 
-        my_start = offsets[rank]
-        my_end = my_start + counts[rank]
+    # --- Time Loop ---
+    inv_2dt = 0.5 / dt
+    U0_vec = speed_of_sound * mach_number
 
-        # Optimization: Helper to read and slice surface data locally
-        def get_local_surface_data(filename, mask, start, end, is_perm, amb_p):
-            if is_perm:
-                df = pd.read_csv(filename, usecols=[8, 9, 10, 11, 13], names=['density','velocity_x','velocity_y','velocity_z','pressure'], dtype=np.float64, engine='pyarrow')
+    skip_Qn = False
+    if not is_permeable:
+        skip_Qn = True
+
+    # Helper to calculate local L and Qn
+    def calc_source_terms_local_components(surfS):
+        # surfS columns: [density, vx, vy, vz, pressure] or [pressure]
+
+        Qn = None
+        if is_permeable:
+             v_dot_n = surfS[:,1]*geom_n_local[:,0] + surfS[:,2]*geom_n_local[:,1] + surfS[:,3]*geom_n_local[:,2]
+             rho_v_dot_n = surfS[:,0] * v_dot_n
+             if not skip_Qn:
+                 U0_dot_n = U0_vec[0]*geom_n_local[:,0] + U0_vec[1]*geom_n_local[:,1] + U0_vec[2]*geom_n_local[:,2]
+                 Qn = -ambient_density_local * U0_dot_n + rho_v_dot_n
+
+             L1 = surfS[:,4]*geom_n_local[:,0] + rho_v_dot_n * (surfS[:,1]-U0_vec[0])
+             L2 = surfS[:,4]*geom_n_local[:,1] + rho_v_dot_n * (surfS[:,2]-U0_vec[1])
+             L3 = surfS[:,4]*geom_n_local[:,2] + rho_v_dot_n * (surfS[:,3]-U0_vec[2])
+        else:
+             # Impermeable
+             if not skip_Qn:
+                 Qn = (-ambient_density_local*U0_vec[0])*geom_n_local[:,0] + (-ambient_density_local*U0_vec[1])*geom_n_local[:,1] + (-ambient_density_local*U0_vec[2])*geom_n_local[:,2]
+             L1 = surfS[:,0]*geom_n_local[:,0]
+             L2 = surfS[:,0]*geom_n_local[:,1]
+             L3 = surfS[:,0]*geom_n_local[:,2]
+
+        Lm = -L1*mach_number[0] - L2*mach_number[1] - L3*mach_number[2]
+        return {'Qn': Qn, 'Lm': Lm, 'L1': L1, 'L2': L2, 'L3': L3}
+
+    # Initialize buffers for t=0, 1, 2
+    src_buf = [None] * 4
+    for k in range(3):
+        surf = get_local_surface_data(surf_file+str(k)+'.csv', filt, my_start, my_end, is_permeable, ambient_pressure)
+        src_buf[k] = calc_source_terms_local_components(surf)
+
+    # Pre-calculate Lr for initial time steps for each observer (LOCAL)
+    for idx in range(n_obs):
+        od = obs_data[idx]
+        r_vec = od['r_vec']
+        for k in range(3):
+            od[f'Lr{k}'] = src_buf[k]['L1']*r_vec[:,0] + src_buf[k]['L2']*r_vec[:,1] + src_buf[k]['L3']*r_vec[:,2]
+
+    Qndot_next = None
+
+    for j in range(1,len(source_times)-2):
+        # Read new file (ONCE per time step)
+        surf3 = get_local_surface_data(surf_file+str(j+2)+'.csv', filt, my_start, my_end, is_permeable, ambient_pressure)
+        src_buf[3] = calc_source_terms_local_components(surf3)
+
+        # Global Lm components
+        Lm0 = src_buf[0]['Lm']
+        Lm1 = src_buf[1]['Lm']
+        Lm2 = src_buf[2]['Lm']
+        Lm3 = src_buf[3]['Lm']
+
+        # Global Qn logic (if permeable)
+        if is_permeable:
+            Qn0 = src_buf[0]['Qn']
+            Qn1 = src_buf[1]['Qn']
+            Qn2 = src_buf[2]['Qn']
+            Qn3 = src_buf[3]['Qn']
+
+            if Qndot_next is None:
+                Qndot1 = (-Qn0+Qn2)*inv_2dt
             else:
-                df = pd.read_csv(filename, usecols=range(13,14), names=['pressure'], dtype=np.float64, engine='pyarrow')
+                Qndot1 = Qndot_next
+            Qndot2 = (-Qn1+Qn3)*inv_2dt
+            Qndot_next = Qndot2
 
-            # Apply mask (dS != 0)
-            df = df[mask]
+        # --- Loop Observers ---
+        for idx in range(n_obs):
+            od = obs_data[idx]
+            r_vec = od['r_vec']
+            sp_c0, sp_c1, sp_c2, sp_c3 = od['sp_coeffs']
+            iw = od['interpolation_weight']
 
-            # Subtract ambient pressure
-            df['pressure'] = df['pressure'] - amb_p
+            Lr0 = od['Lr0']
+            Lr1 = od['Lr1']
+            Lr2 = od['Lr2']
+            Lr3 = src_buf[3]['L1']*r_vec[:,0] + src_buf[3]['L2']*r_vec[:,1] + src_buf[3]['L3']*r_vec[:,2]
 
-            # Convert to numpy and slice
-            data = df.to_numpy()
-            return data[start:end]
+            # Update cache for next iteration (shift)
+            od['Lr0'] = Lr1
+            od['Lr1'] = Lr2
+            od['Lr2'] = Lr3
 
-        # Optimization: Precompute local slices of static data
-        preprocessed_local = preprocessed_arrays[my_start:my_end]
-        ambient_density_local = ambient_density[my_start:my_end]
-
-        # Optimization: Slice geometric factors to keep only local data
-        factor_pt1_scaled_local = factor_pt1_scaled[my_start:my_end]
-        factor_pt2_scaled_local = factor_pt2_scaled[my_start:my_end]
-        factor_pq1_scaled_local = factor_pq1_scaled[my_start:my_end]
-        factor_pq2_scaled_local = factor_pq2_scaled[my_start:my_end]
-        factor_pq3_scaled_local = factor_pq3_scaled[my_start:my_end]
-
-        j_star_local = j_star[my_start:my_end]
-
-        pt_static_local = None
-        if pt_static is not None:
-            pt_static_local = pt_static[my_start:my_end]
-
-        U0_vec = speed_of_sound * mach_number
-
-        # Initialize t0, t1, t2 using local logic
-        surf0 = get_local_surface_data(surf_file+'0.csv', filt, my_start, my_end, is_permeable, ambient_pressure)
-        src_t0_local = _calculate_source_terms_local(surf0, preprocessed_local, ambient_density_local, U0_vec, mach_number, is_permeable, skip_Qn)
-
-        surf1 = get_local_surface_data(surf_file+'1.csv', filt, my_start, my_end, is_permeable, ambient_pressure)
-        src_t1_local = _calculate_source_terms_local(surf1, preprocessed_local, ambient_density_local, U0_vec, mach_number, is_permeable, skip_Qn)
-
-        surf2 = get_local_surface_data(surf_file+'2.csv', filt, my_start, my_end, is_permeable, ambient_pressure)
-        src_t2_local = _calculate_source_terms_local(surf2, preprocessed_local, ambient_density_local, U0_vec, mach_number, is_permeable, skip_Qn)
-
-        # Optimization: Precompute inverse time step factor and initialize loop variables
-        inv_2dt = 0.5 / dt
-        Lrdot_next = None
-        Qndot_next = None
-
-        for j in range(1,len(source_times)-2):
-            j_adv_local = j + j_star_local + 1 #advanced time step
-            j_cond_local = (j_adv_local >= t_range[0])*(j_adv_local < t_range[1])
-
-            # Optimized: Read and compute locally, skipping MPI
-            surf3 = get_local_surface_data(surf_file+str(j+2)+'.csv', filt, my_start, my_end, is_permeable, ambient_pressure)
-            src_t3_local = _calculate_source_terms_local(surf3, preprocessed_local, ambient_density_local, U0_vec, mach_number, is_permeable, skip_Qn)
-
-            Lr1 = src_t1_local['Lr']
-            Lm1 = src_t1_local['Lm']
-
-            Lr2 = src_t2_local['Lr']
-            Lm2 = src_t2_local['Lm']
-
-            # Optimized: Reuse Lrdot calculations from previous iteration
-            if Lrdot_next is None:
-                Lrdot1 = (-src_t0_local['Lr']+src_t2_local['Lr'])*inv_2dt
+            if od['Lrdot_next'] is None:
+                Lrdot1 = (-Lr0+Lr2)*inv_2dt
             else:
-                Lrdot1 = Lrdot_next
+                Lrdot1 = od['Lrdot_next']
+            Lrdot2 = (-Lr1+Lr3)*inv_2dt
+            od['Lrdot_next'] = Lrdot2
 
-            Lrdot2 = (-src_t1_local['Lr']+src_t3_local['Lr'])*inv_2dt
-            Lrdot_next = Lrdot2
+            Lr = sp_c0*Lr0 + sp_c1*Lr1 + sp_c2*Lr2 + sp_c3*Lr3
+            Lrdot = Lrdot2 + iw * (Lrdot1 - Lrdot2)
 
-            # Optimized: Use precomputed spline coefficients
-            Lr = sp_c0*src_t0_local['Lr'] + sp_c1*src_t1_local['Lr'] + sp_c2*src_t2_local['Lr'] + sp_c3*src_t3_local['Lr']
-            # Optimized: Linear interpolation as L2 + w*(L1-L2)
-            Lrdot = Lrdot2 + interpolation_weight * (Lrdot1 - Lrdot2)
-            Lm = sp_c0*src_t0_local['Lm'] + sp_c1*src_t1_local['Lm'] + sp_c2*src_t2_local['Lm'] + sp_c3*src_t3_local['Lm']
+            Lm = sp_c0*Lm0 + sp_c1*Lm1 + sp_c2*Lm2 + sp_c3*Lm3
 
+            factors = od['factors']
+            factor_pt1_scaled, factor_pt2_scaled, factor_pq1_scaled, factor_pq2_scaled, factor_pq3_scaled = factors
+
+            pt = None
             if not is_permeable:
-                # Optimized: Use precomputed pt_static
-                pt = pt_static_local
+                pt = od['pt_static']
             else:
-                # Optimized: Reuse Qndot calculations from previous iteration
-                if Qndot_next is None:
-                    Qndot1 = (-src_t0_local['Qn']+src_t2_local['Qn'])*inv_2dt
-                else:
-                    Qndot1 = Qndot_next
+                Qn = sp_c0*Qn0 + sp_c1*Qn1 + sp_c2*Qn2 + sp_c3*Qn3
+                Qndot = Qndot2 + iw * (Qndot1 - Qndot2)
+                pt = Qndot * factor_pt1_scaled + Qn * factor_pt2_scaled
 
-                Qndot2 = (-src_t1_local['Qn']+src_t3_local['Qn'])*inv_2dt
-                Qndot_next = Qndot2
+            pq = Lrdot * factor_pq1_scaled + (Lr - Lm) * factor_pq2_scaled + Lr * factor_pq3_scaled
 
-                Qn = sp_c0*src_t0_local['Qn'] + sp_c1*src_t1_local['Qn'] + sp_c2*src_t2_local['Qn'] + sp_c3*src_t3_local['Qn']
-                # Optimized: Linear interpolation as L2 + w*(L1-L2)
-                Qndot = Qndot2 + interpolation_weight * (Qndot1 - Qndot2)
+            p = pt+pq
 
-                # Optimized: Use precomputed factors
-                pt = Qndot * factor_pt1_scaled_local + Qn * factor_pt2_scaled_local
+            j_adv = j + od['j_star'] + 1
+            j_cond = (j_adv >= od['t_range'][0])*(j_adv < od['t_range'][1])
+            p *= j_cond
 
-            # Loading component
-            pq = Lrdot * factor_pq1_scaled_local + (Lr - Lm) * factor_pq2_scaled_local + Lr * factor_pq3_scaled_local
+            p_act = np.bincount(od['j_star'], weights=p, minlength=od['len_p_act'])
+            n_elm = np.bincount(od['j_star'], weights=j_cond, minlength=od['len_p_act'])
 
-            p_local = np.array(pt+pq)
-            p_local *= j_cond_local
+            # Accumulate locally
+            # We align p_act (starting at 0) to j+1 in acoustic_pressure
+            od['acoustic_pressure'][j+1 : j+1+od['len_p_act']] += p_act
+            od['count'][j+1 : j+1+od['len_p_act']] += n_elm
 
-            # Optimized: Use bincount directly on local data
-            p_act = np.bincount(j_star_local, weights=p_local, minlength=len_p_act)
-            n_elm = np.bincount(j_star_local, weights=j_cond_local, minlength=len_p_act)
+        # Shift buffer
+        src_buf[0] = src_buf[1]
+        src_buf[1] = src_buf[2]
+        src_buf[2] = src_buf[3]
 
+    # --- Reduce Results ---
+    for idx in range(n_obs):
+        od = obs_data[idx]
 
-            p_act = comm.gather(p_act, root=0)
-            n_elm = comm.gather(n_elm, root=0)
-
-            src_t0_local = src_t1_local
-            src_t1_local = src_t2_local
-            src_t2_local = src_t3_local
-
-
-            if rank == 0:
-
-                # Reconstruct full j_adv for indexing on Rank 0
-                j_adv_full = j + j_star + 1
-                p_sum = sum(p_act)
-                n_sum = sum(n_elm)
-
-                start_idx = min(j_adv_full)
-                end_idx = max(j_adv_full) + 1
-
-                acoustic_pressure[start_idx:end_idx] += p_sum
-                count[start_idx:end_idx] += n_sum
+        # Reduce acoustic_pressure
+        global_p = np.zeros_like(od['acoustic_pressure'])
+        comm.Reduce(od['acoustic_pressure'], global_p, op=MPI.SUM, root=0)
 
         if rank == 0:
-            fig, ax = plt.subplots( nrows=1, ncols=1, figsize = [12,8]  )  # create figure & 1 axis
-            ax.plot(t_o[t_range[0]:t_range[1]], acoustic_pressure[t_range[0]:t_range[1]],'b')
+            t_o = od['t_o']
+            t_range = od['t_range']
+
+            fig, ax = plt.subplots( nrows=1, ncols=1, figsize = [12,8] )  # create figure & 1 axis
+            ax.plot(t_o[t_range[0]:t_range[1]], global_p[t_range[0]:t_range[1]],'b')
             plt.title('Pressure time history at location '+str(xo))
             ax.set_xlabel('time (sec)')
             ax.set_ylabel("$p'$ (Pa)")
             fig.savefig(output_filename + str(idx)+ '.png')   # save the figure to file
             plt.close(fig)
             if write:
-                p_df = pd.DataFrame({"t_o": t_o[t_range[0]:t_range[1]], "p'": acoustic_pressure[t_range[0]:t_range[1]]})
+                p_df = pd.DataFrame({"t_o": t_o[t_range[0]:t_range[1]], "p'": global_p[t_range[0]:t_range[1]]})
                 p_df.to_csv(output_filename + str(idx)+ '.csv', index=False)
                 print("Far-field acoustic pressure for location " + str(xo) + " has been computed successfully. Output CSV file printed as " + output_filename  + str(idx) +  ".csv.")
+
     if rank == 0 :
         if write:
             return "All calculations successfully completed! Far-field acoustic pressure for " + str(len(observer_locations)) + " observer location(s) saved to corresponding PNG images and CSV file(s)"
