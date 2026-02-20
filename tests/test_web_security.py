@@ -9,13 +9,22 @@ class TestWebSecurityDoS(unittest.TestCase):
         at = AppTest.from_file("src/soniclit/gui/web/app.py")
         at.run(timeout=10)
 
+        # Toggle to "Coordinate List" first
+        radio = None
+        for r in at.radio:
+            if "Observer Location" in r.label:
+                radio = r
+                break
+        self.assertIsNotNone(radio, "Could not find 'Observer Location' radio.")
+        radio.set_value("Coordinate List").run(timeout=10)
+
         obs_input = None
         for widget in at.text_input:
-            if "Observer Locations" in widget.label:
+            if "Coordinates List" in widget.label:
                 obs_input = widget
                 break
 
-        self.assertIsNotNone(obs_input, "Could not find 'Observer Locations' input.")
+        self.assertIsNotNone(obs_input, "Could not find 'Coordinates List' input.")
 
         # Create a massive string (>5000 chars)
         # "0," is 2 chars. 3000 * 2 = 6000 chars.
@@ -85,34 +94,20 @@ class TestWebSecurityDoS(unittest.TestCase):
         self.assertIn("(&lt;script&gt;)", safe_mixed)
 
     def test_ma_dos_length(self):
-        """Test that providing a massive string to Mach Number is handled safely and quickly."""
+        """Test that providing a massive string to Mach Number is handled safely (by using numeric inputs)."""
         at = AppTest.from_file("src/soniclit/gui/web/app.py")
         at.run(timeout=10)
 
-        ma_input = None
+        # Confirm old text input "Mach Number" is GONE (mitigation for string DoS)
+        ma_text_input = None
         for widget in at.text_input:
             if "Mach Number" in widget.label:
-                ma_input = widget
+                ma_text_input = widget
                 break
+        self.assertIsNone(ma_text_input, "'Mach Number' text input should not exist (replaced by numeric inputs).")
 
-        self.assertIsNotNone(ma_input, "Could not find 'Mach Number' input.")
-
-        # Huge payload
-        huge_payload = "[" + "0,"*3000 + "0]"
-
-        start_time = time.time()
-        at = ma_input.set_value(huge_payload).run(timeout=5)
-        duration = time.time() - start_time
-
-        self.assertLess(duration, 2.0, "Execution took too long.")
-
-        found_length_error = False
-        for error in at.error:
-            if "Input too long" in error.value:
-                found_length_error = True
-                break
-
-        current_val = ma_input.value
-
-        if len(current_val) > 5000:
-             self.assertTrue(found_length_error, "Input > 5000 chars but 'Input too long' error not shown.")
+        # Confirm new numeric inputs exist (Mx, My, Mz)
+        labels = [w.label for w in at.number_input]
+        self.assertIn("Mx", labels)
+        self.assertIn("My", labels)
+        self.assertIn("Mz", labels)

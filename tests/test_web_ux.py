@@ -9,10 +9,10 @@ class TestWebUX(unittest.TestCase):
         # Find the radio button
         radio = None
         for r in at.radio:
-            if "Observer Input Mode" in r.label:
+            if "Observer Location" in r.label:
                 radio = r
                 break
-        self.assertIsNotNone(radio, "Observer Input Mode radio not found")
+        self.assertIsNotNone(radio, "Observer Location radio not found")
 
         # 1. Verify Default State: "Single Point" selected
         self.assertEqual(radio.value, "Single Point")
