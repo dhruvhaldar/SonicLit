@@ -609,6 +609,14 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
         src_buf[1] = _calculate_source_terms_global(surf_file+'1.csv', filt, ambient_pressure, ambient_density, speed_of_sound, mach_number, is_permeable, geom_n, skip_Qn)
         src_buf[2] = _calculate_source_terms_global(surf_file+'2.csv', filt, ambient_pressure, ambient_density, speed_of_sound, mach_number, is_permeable, geom_n, skip_Qn)
 
+        # Optimization: Pre-calculate Lr for initial time steps for each observer
+        for idx in range(n_obs):
+            od = obs_data[idx]
+            r_vec = od['r_vec']
+            od['Lr0'] = src_buf[0]['L1']*r_vec[:,0] + src_buf[0]['L2']*r_vec[:,1] + src_buf[0]['L3']*r_vec[:,2]
+            od['Lr1'] = src_buf[1]['L1']*r_vec[:,0] + src_buf[1]['L2']*r_vec[:,1] + src_buf[1]['L3']*r_vec[:,2]
+            od['Lr2'] = src_buf[2]['L1']*r_vec[:,0] + src_buf[2]['L2']*r_vec[:,1] + src_buf[2]['L3']*r_vec[:,2]
+
         Qndot_next = None
 
         for j in range(1,len(source_times)-2):
@@ -643,10 +651,16 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
                 iw = od['interpolation_weight']
 
                 # Calculate Lr = L . r
-                Lr0 = src_buf[0]['L1']*r_vec[:,0] + src_buf[0]['L2']*r_vec[:,1] + src_buf[0]['L3']*r_vec[:,2]
-                Lr1 = src_buf[1]['L1']*r_vec[:,0] + src_buf[1]['L2']*r_vec[:,1] + src_buf[1]['L3']*r_vec[:,2]
-                Lr2 = src_buf[2]['L1']*r_vec[:,0] + src_buf[2]['L2']*r_vec[:,1] + src_buf[2]['L3']*r_vec[:,2]
+                # Optimization: Reuse cached Lr values to avoid redundant dot products
+                Lr0 = od['Lr0']
+                Lr1 = od['Lr1']
+                Lr2 = od['Lr2']
                 Lr3 = src_buf[3]['L1']*r_vec[:,0] + src_buf[3]['L2']*r_vec[:,1] + src_buf[3]['L3']*r_vec[:,2]
+
+                # Update cache for next iteration (shift)
+                od['Lr0'] = Lr1
+                od['Lr1'] = Lr2
+                od['Lr2'] = Lr3
 
                 if od['Lrdot_next'] is None:
                     Lrdot1 = (-Lr0+Lr2)*inv_2dt
