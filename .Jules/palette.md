@@ -43,3 +43,7 @@
 ## 2026-02-18 - Replacing Technical Inputs with Visual Controls
 **Learning:** For inputs expecting Python literals (like vectors `[x,y,z]`), replacing text inputs with structured number inputs (e.g., columns of `st.number_input`) dramatically reduces syntax errors and improves accessibility, while maintaining backend compatibility via string construction.
 **Action:** Replace `st.text_input` for vector/list data with `st.columns` + `st.number_input` whenever the structure is fixed (e.g., 3D vectors), and offer a toggle for advanced/variable-length inputs.
+
+## 2026-02-21 - Improving Complex List Inputs
+**Learning:** For inputs expecting long lists (e.g., coordinate lists), `st.text_input` is too restrictive and error-prone. `st.text_area` provides a better editing experience, and clear examples are critical for complex formats.
+**Action:** Replace `st.text_input` with `st.text_area` for multi-line data, and always accompany complex format requirements with `st.caption` showing a concrete example. Also, ensure labels are descriptive (e.g., "Observer X" vs "X") for screen reader context.

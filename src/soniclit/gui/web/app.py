@@ -77,12 +77,13 @@ with tab_fwh:
 
         if obs_mode == "Single Point":
             oc1, oc2, oc3 = st.columns(3)
-            with oc1: ox = st.number_input("X", value=0.0, step=1.0, format="%.1f", help="X Coordinate")
-            with oc2: oy = st.number_input("Y", value=0.0, step=1.0, format="%.1f", help="Y Coordinate")
-            with oc3: oz = st.number_input("Z", value=1.0, step=1.0, format="%.1f", help="Z Coordinate")
+            with oc1: ox = st.number_input("Observer X", value=0.0, step=1.0, format="%.1f", help="X Coordinate")
+            with oc2: oy = st.number_input("Observer Y", value=0.0, step=1.0, format="%.1f", help="Y Coordinate")
+            with oc3: oz = st.number_input("Observer Z", value=1.0, step=1.0, format="%.1f", help="Z Coordinate")
             obs_loc_str = str([[ox, oy, oz]])
         else:
-            obs_loc_str = st.text_input("Coordinates List", value="[[0.0, 0.0, 1.0]]", max_chars=5000, help="List of coordinates [x,y,z]. Example: [[0, 0, 10], [0, 10, 10]]")
+            obs_loc_str = st.text_area("Coordinates List", value="[[0.0, 0.0, 1.0]]", max_chars=5000, help="List of coordinates [x,y,z]. Example: [[0, 0, 10], [0, 10, 10]]")
+            st.caption("Example Format: `[[x1, y1, z1], [x2, y2, z2]]`")
 
         # Validation for obs_loc
         obs_valid = True
