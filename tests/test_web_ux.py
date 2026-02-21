@@ -17,28 +17,28 @@ class TestWebUX(unittest.TestCase):
         # 1. Verify Default State: "Single Point" selected
         self.assertEqual(radio.value, "Single Point")
 
-        # Verify 3 number inputs exist for Observer (X, Y, Z)
+        # Verify 3 number inputs exist for Observer (Observer X, Observer Y, Observer Z)
         labels = [ni.label for ni in at.number_input]
-        self.assertIn("X", labels)
-        self.assertIn("Y", labels)
-        self.assertIn("Z", labels)
+        self.assertIn("Observer X", labels)
+        self.assertIn("Observer Y", labels)
+        self.assertIn("Observer Z", labels)
 
-        # Verify text input "Coordinates List" is NOT present
-        text_inputs = [ti.label for ti in at.text_input]
-        self.assertNotIn("Coordinates List", text_inputs)
+        # Verify text area "Coordinates List" is NOT present
+        text_areas = [ta.label for ta in at.text_area]
+        self.assertNotIn("Coordinates List", text_areas)
 
         # 2. Toggle to "Coordinate List"
         radio.set_value("Coordinate List").run(timeout=10)
 
-        # Verify text input IS present
-        text_inputs_after = [ti.label for ti in at.text_input]
-        self.assertIn("Coordinates List", text_inputs_after)
+        # Verify text area IS present
+        text_areas_after = [ta.label for ta in at.text_area]
+        self.assertIn("Coordinates List", text_areas_after)
 
-        # Verify number inputs (X, Y, Z) should be gone
+        # Verify number inputs (Observer X, Observer Y, Observer Z) should be gone
         labels_after = [ni.label for ni in at.number_input]
-        self.assertNotIn("X", labels_after)
-        self.assertNotIn("Y", labels_after)
-        self.assertNotIn("Z", labels_after)
+        self.assertNotIn("Observer X", labels_after)
+        self.assertNotIn("Observer Y", labels_after)
+        self.assertNotIn("Observer Z", labels_after)
 
     def test_mach_vector_inputs(self):
         at = AppTest.from_file("src/soniclit/gui/web/app.py")
