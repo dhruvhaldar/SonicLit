@@ -47,3 +47,7 @@
 ## 2026-02-21 - Improving Complex List Inputs
 **Learning:** For inputs expecting long lists (e.g., coordinate lists), `st.text_input` is too restrictive and error-prone. `st.text_area` provides a better editing experience, and clear examples are critical for complex formats.
 **Action:** Replace `st.text_input` with `st.text_area` for multi-line data, and always accompany complex format requirements with `st.caption` showing a concrete example. Also, ensure labels are descriptive (e.g., "Observer X" vs "X") for screen reader context.
+
+## 2025-05-15 - Explicit Units in Input Labels
+**Learning:** In scientific applications, ambiguity about units (e.g., meters vs feet) is a critical usability issue. Relying solely on tooltips or documentation is insufficient as users scan forms quickly.
+**Action:** Always include units directly in the label of input fields (e.g., "Observer X (m)", "Time Step (s)") to provide immediate, unambiguous context.
