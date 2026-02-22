@@ -77,9 +77,9 @@ with tab_fwh:
 
         if obs_mode == "Single Point":
             oc1, oc2, oc3 = st.columns(3)
-            with oc1: ox = st.number_input("Observer X", value=0.0, step=1.0, format="%.1f", help="X Coordinate")
-            with oc2: oy = st.number_input("Observer Y", value=0.0, step=1.0, format="%.1f", help="Y Coordinate")
-            with oc3: oz = st.number_input("Observer Z", value=1.0, step=1.0, format="%.1f", help="Z Coordinate")
+            with oc1: ox = st.number_input("Observer X (m)", value=0.0, step=1.0, format="%.1f", help="X Coordinate in meters")
+            with oc2: oy = st.number_input("Observer Y (m)", value=0.0, step=1.0, format="%.1f", help="Y Coordinate in meters")
+            with oc3: oz = st.number_input("Observer Z (m)", value=1.0, step=1.0, format="%.1f", help="Z Coordinate in meters")
             obs_loc_str = str([[ox, oy, oz]])
         else:
             obs_loc_str = st.text_area("Coordinates List", value="[[0.0, 0.0, 1.0]]", max_chars=5000, help="List of coordinates [x,y,z]. Example: [[0, 0, 10], [0, 10, 10]]")
@@ -115,7 +115,7 @@ with tab_fwh:
             st.error("Invalid format. Use Python list syntax, e.g. [[0,0,10]]")
             obs_valid = False
 
-        dt_val = st.number_input("Time Step (dt)", value=0.01, format="%.4f", help="Simulation time step in seconds.")
+        dt_val = st.number_input("Time Step (s)", value=0.01, format="%.4f", help="Simulation time step in seconds.")
         steps_val = st.number_input("Number of Steps", value=10, step=1, min_value=1, max_value=100000, help="Total number of time steps to process.")
         # Security: Enforce backend limit to prevent DoS
         steps_val = min(steps_val, 100000)

@@ -89,12 +89,12 @@ class TestWebApp(unittest.TestCase):
         dt_input = None
         steps_input = None
         for widget in at.number_input:
-            if "Time Step (dt)" in widget.label:
+            if "Time Step (s)" in widget.label:
                 dt_input = widget
             elif "Number of Steps" in widget.label:
                 steps_input = widget
 
-        self.assertIsNotNone(dt_input, "Could not find 'Time Step (dt)' input")
+        self.assertIsNotNone(dt_input, "Could not find 'Time Step (s)' input")
         self.assertIsNotNone(steps_input, "Could not find 'Number of Steps' input")
 
         # Set values

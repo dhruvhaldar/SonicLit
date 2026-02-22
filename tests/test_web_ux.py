@@ -19,9 +19,9 @@ class TestWebUX(unittest.TestCase):
 
         # Verify 3 number inputs exist for Observer (Observer X, Observer Y, Observer Z)
         labels = [ni.label for ni in at.number_input]
-        self.assertIn("Observer X", labels)
-        self.assertIn("Observer Y", labels)
-        self.assertIn("Observer Z", labels)
+        self.assertIn("Observer X (m)", labels)
+        self.assertIn("Observer Y (m)", labels)
+        self.assertIn("Observer Z (m)", labels)
 
         # Verify text area "Coordinates List" is NOT present
         text_areas = [ta.label for ta in at.text_area]
@@ -36,9 +36,9 @@ class TestWebUX(unittest.TestCase):
 
         # Verify number inputs (Observer X, Observer Y, Observer Z) should be gone
         labels_after = [ni.label for ni in at.number_input]
-        self.assertNotIn("Observer X", labels_after)
-        self.assertNotIn("Observer Y", labels_after)
-        self.assertNotIn("Observer Z", labels_after)
+        self.assertNotIn("Observer X (m)", labels_after)
+        self.assertNotIn("Observer Y (m)", labels_after)
+        self.assertNotIn("Observer Z (m)", labels_after)
 
     def test_mach_vector_inputs(self):
         at = AppTest.from_file("src/soniclit/gui/web/app.py")
