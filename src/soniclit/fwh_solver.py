@@ -551,7 +551,6 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
             D = (max(j_star)-1)*(max(j_star)>1)
 
             acoustic_pressure = np.zeros(len(t_o)+D)
-            count = np.zeros(len(t_o)+D)
             len_p_act = np.max(j_star) + 1
 
             one_minus_Mr = 1.0 - Mr
@@ -587,7 +586,6 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
                 'j_star': j_star,
                 't_range': t_range,
                 'acoustic_pressure': acoustic_pressure,
-                'count': count,
                 'len_p_act': len_p_act,
                 'sp_coeffs': (sp_c0, sp_c1, sp_c2, sp_c3),
                 'factors': (factor_pt1_scaled, factor_pt2_scaled, factor_pq1_scaled, factor_pq2_scaled, factor_pq3_scaled),
@@ -695,12 +693,10 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
                 p *= j_cond
 
                 p_act = np.bincount(od['j_star'], weights=p, minlength=od['len_p_act'])
-                n_elm = np.bincount(od['j_star'], weights=j_cond, minlength=od['len_p_act'])
 
                 start_idx = min(j_adv)
                 end_idx = max(j_adv)+1
                 od['acoustic_pressure'][start_idx:end_idx] += p_act
-                od['count'][start_idx:end_idx] += n_elm
 
             # Shift buffer
             src_buf[0] = src_buf[1]
@@ -822,7 +818,6 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
         D = (max_j_star_global-1)*(max_j_star_global>1)
 
         acoustic_pressure = np.zeros(len(t_o)+D)
-        count = np.zeros(len(t_o)+D)
         len_p_act = max_j_star_global + 1
 
         one_minus_Mr = 1.0 - Mr
@@ -858,7 +853,6 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
             'j_star': j_star,
             't_range': t_range,
             'acoustic_pressure': acoustic_pressure,
-            'count': count,
             'len_p_act': len_p_act,
             'sp_coeffs': (sp_c0, sp_c1, sp_c2, sp_c3),
             'factors': (factor_pt1_scaled, factor_pt2_scaled, factor_pq1_scaled, factor_pq2_scaled, factor_pq3_scaled),
@@ -1000,12 +994,10 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
             p *= j_cond
 
             p_act = np.bincount(od['j_star'], weights=p, minlength=od['len_p_act'])
-            n_elm = np.bincount(od['j_star'], weights=j_cond, minlength=od['len_p_act'])
 
             # Accumulate locally
             # We align p_act (starting at 0) to j+1 in acoustic_pressure
             od['acoustic_pressure'][j+1 : j+1+od['len_p_act']] += p_act
-            od['count'][j+1 : j+1+od['len_p_act']] += n_elm
 
         # Shift buffer
         src_buf[0] = src_buf[1]
