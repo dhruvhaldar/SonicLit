@@ -12,6 +12,29 @@ import soniclit.fwh_solver as fwh
 import soniclit.signal_processing as sa
 from soniclit.utils import safe_extract_zip, validate_zip_contents, is_file_size_valid, sanitize_markdown, get_column_index
 
+def parse_observer_input(obs_loc_str):
+    """
+    Parses observer location string.
+    Supports both Python list syntax (e.g., [[x,y,z], ...])
+    and CSV/Newline separated format (e.g., x, y, z \n ...).
+    """
+    try:
+        # Try parsing as Python list
+        return ast.literal_eval(obs_loc_str)
+    except:
+        # Fallback: Try parsing as CSV/Lines
+        val = []
+        for line in obs_loc_str.strip().split('\n'):
+            if line.strip():
+                # Remove brackets if user mixed formats, split by comma
+                clean_line = line.replace('[', '').replace(']', '')
+                parts = [float(x.strip()) for x in clean_line.split(',')]
+                if len(parts) == 3:
+                    val.append(parts)
+                else:
+                    raise ValueError("Invalid CSV line")
+        return val
+
 # Security Constants
 MAX_CSV_SIZE_MB = 10
 MAX_ZIP_SIZE_MB = 50
@@ -82,8 +105,8 @@ with tab_fwh:
             with oc3: oz = st.number_input("Observer Z (m)", value=1.0, step=1.0, format="%.1f", help="Z Coordinate in meters")
             obs_loc_str = str([[ox, oy, oz]])
         else:
-            obs_loc_str = st.text_area("Coordinates List", value="[[0.0, 0.0, 1.0]]", max_chars=5000, help="List of coordinates [x,y,z]. Example: [[0, 0, 10], [0, 10, 10]]")
-            st.caption("Example Format: `[[x1, y1, z1], [x2, y2, z2]]`")
+            obs_loc_str = st.text_area("Coordinates List", value="[[0.0, 0.0, 1.0]]", max_chars=5000, help="List of coordinates [x,y,z] or CSV format. Example:\n[[0, 0, 10], [0, 10, 10]]\nOR\n0, 0, 10\n0, 10, 10")
+            st.caption("Example Format: `[[x1, y1, z1], [x2, y2, z2]]` OR CSV (one coord per line)")
 
         # Validation for obs_loc
         obs_valid = True
@@ -92,7 +115,8 @@ with tab_fwh:
                 st.error("Input too long (max 5000 characters).")
                 obs_valid = False
             else:
-                val = ast.literal_eval(obs_loc_str)
+                val = parse_observer_input(obs_loc_str)
+
                 if not isinstance(val, (list, tuple)):
                     st.error("Observer locations must be a list of coordinates (e.g. [[0,0,10]]).")
                     obs_valid = False
@@ -112,7 +136,7 @@ with tab_fwh:
                     if obs_valid:
                         st.caption(f"✅ Ready to compute for **{len(val)}** observer(s).")
         except:
-            st.error("Invalid format. Use Python list syntax, e.g. [[0,0,10]]")
+            st.error("Invalid format. Use Python list syntax `[[x,y,z]]` OR CSV `x, y, z`")
             obs_valid = False
 
         dt_val = st.number_input("Time Step (s)", value=0.01, format="%.4f", help="Simulation time step in seconds.")
@@ -166,7 +190,7 @@ with tab_fwh:
             try:
                 st.toast("🚀 Starting FWH Solver...", icon="🚀")
                 # Parse inputs
-                obs_loc = ast.literal_eval(obs_loc_str)
+                obs_loc = parse_observer_input(obs_loc_str)
                 ma = ast.literal_eval(ma_str)
                 t_src = [i*dt_val for i in range(int(steps_val))]
 
