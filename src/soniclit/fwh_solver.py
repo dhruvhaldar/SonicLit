@@ -526,6 +526,7 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
 
         M2 = np.sum(mach_number**2)
         inv_4pi = 1.0 / (4.0 * np.pi)
+        inv_2dt = 0.5 / dt
 
         for idx, xo in enumerate(observer_locations):
             # Same logic as original
@@ -571,6 +572,37 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
             factor_pq2_scaled = factor_pq2 * inv_4pi
             factor_pq3_scaled = factor_pq3 * inv_4pi
 
+            # Precompute combined weights to optimize inner loop
+            k = inv_2dt
+            w_dot_0 = -k * interpolation_weight
+            w_dot_1 = -k * (1.0 - interpolation_weight)
+            w_dot_2 = -w_dot_0 # k * iw
+            w_dot_3 = -w_dot_1 # k * (1-iw)
+
+            F1 = factor_pq1_scaled
+            F2 = factor_pq2_scaled
+            F3 = factor_pq3_scaled
+
+            F23 = F2 + F3
+
+            # W_L_i = w_dot_i * F1 + sp_ci * F23
+            W_L_0 = w_dot_0 * F1 + sp_c0 * F23
+            W_L_1 = w_dot_1 * F1 + sp_c1 * F23
+            W_L_2 = w_dot_2 * F1 + sp_c2 * F23
+            W_L_3 = w_dot_3 * F1 + sp_c3 * F23
+
+            # W_M_i = -sp_ci * F2
+            W_M_0 = -sp_c0 * F2
+            W_M_1 = -sp_c1 * F2
+            W_M_2 = -sp_c2 * F2
+            W_M_3 = -sp_c3 * F2
+
+            combined_weights = {
+                'L': (W_L_0, W_L_1, W_L_2, W_L_3),
+                'M': (W_M_0, W_M_1, W_M_2, W_M_3),
+                'Q': None
+            }
+
             # Static pt for impermeable
             pt_static = None
             if not is_permeable:
@@ -579,19 +611,26 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
                             (-ambient_density * U0_static[1]) * geom_n[:, 1] + \
                             (-ambient_density * U0_static[2]) * geom_n[:, 2]
                  pt_static = Qn_static * factor_pt2_scaled
+            else:
+                 F_pt1 = factor_pt1_scaled
+                 F_pt2 = factor_pt2_scaled
+
+                 W_Q_0 = w_dot_0 * F_pt1 + sp_c0 * F_pt2
+                 W_Q_1 = w_dot_1 * F_pt1 + sp_c1 * F_pt2
+                 W_Q_2 = w_dot_2 * F_pt1 + sp_c2 * F_pt2
+                 W_Q_3 = w_dot_3 * F_pt1 + sp_c3 * F_pt2
+
+                 combined_weights['Q'] = (W_Q_0, W_Q_1, W_Q_2, W_Q_3)
 
             obs_data.append({
                 'r_vec': r_vec,
-                'interpolation_weight': interpolation_weight,
                 'j_star': j_star,
                 't_range': t_range,
                 'acoustic_pressure': acoustic_pressure,
                 'len_p_act': len_p_act,
-                'sp_coeffs': (sp_c0, sp_c1, sp_c2, sp_c3),
-                'factors': (factor_pt1_scaled, factor_pt2_scaled, factor_pq1_scaled, factor_pq2_scaled, factor_pq3_scaled),
                 'pt_static': pt_static,
                 't_o': t_o,
-                'Lrdot_next': None
+                'combined_weights': combined_weights
             })
 
         # --- Time Loop ---
@@ -645,8 +684,6 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
             for idx in range(n_obs):
                 od = obs_data[idx]
                 r_vec = od['r_vec']
-                sp_c0, sp_c1, sp_c2, sp_c3 = od['sp_coeffs']
-                iw = od['interpolation_weight']
 
                 # Calculate Lr = L . r
                 # Optimization: Reuse cached Lr values to avoid redundant dot products
@@ -660,31 +697,21 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
                 od['Lr1'] = Lr2
                 od['Lr2'] = Lr3
 
-                if od['Lrdot_next'] is None:
-                    Lrdot1 = (-Lr0+Lr2)*inv_2dt
-                else:
-                    Lrdot1 = od['Lrdot_next']
-                Lrdot2 = (-Lr1+Lr3)*inv_2dt
-                od['Lrdot_next'] = Lrdot2
+                weights = od['combined_weights']
+                W_L = weights['L']
+                W_M = weights['M']
 
-                Lr = sp_c0*Lr0 + sp_c1*Lr1 + sp_c2*Lr2 + sp_c3*Lr3
-                Lrdot = Lrdot2 + iw * (Lrdot1 - Lrdot2)
-
-                Lm = sp_c0*Lm0 + sp_c1*Lm1 + sp_c2*Lm2 + sp_c3*Lm3
-
-                factors = od['factors']
-                factor_pt1_scaled, factor_pt2_scaled, factor_pq1_scaled, factor_pq2_scaled, factor_pq3_scaled = factors
+                # Optimized pq calculation using precomputed weights
+                # pq = Sum(W_L_i * Lri) + Sum(W_M_i * Lmi)
+                pq = W_L[0]*Lr0 + W_L[1]*Lr1 + W_L[2]*Lr2 + W_L[3]*Lr3 + \
+                     W_M[0]*Lm0 + W_M[1]*Lm1 + W_M[2]*Lm2 + W_M[3]*Lm3
 
                 pt = None
                 if not is_permeable:
                     pt = od['pt_static']
                 else:
-                    # Qn interpolation is per-observer because weights are per-observer
-                    Qn = sp_c0*Qn0 + sp_c1*Qn1 + sp_c2*Qn2 + sp_c3*Qn3
-                    Qndot = Qndot2 + iw * (Qndot1 - Qndot2)
-                    pt = Qndot * factor_pt1_scaled + Qn * factor_pt2_scaled
-
-                pq = Lrdot * factor_pq1_scaled + (Lr - Lm) * factor_pq2_scaled + Lr * factor_pq3_scaled
+                    W_Q = weights['Q']
+                    pt = W_Q[0]*Qn0 + W_Q[1]*Qn1 + W_Q[2]*Qn2 + W_Q[3]*Qn3
 
                 p = pt+pq
 
@@ -783,6 +810,7 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
 
     M2 = np.sum(mach_number**2)
     inv_4pi = 1.0 / (4.0 * np.pi)
+    inv_2dt = 0.5 / dt
 
     for idx, xo in enumerate(observer_locations):
         # Calculate time independent quantities (using LOCAL geometry)
@@ -838,6 +866,37 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
         factor_pq2_scaled = factor_pq2 * inv_4pi
         factor_pq3_scaled = factor_pq3 * inv_4pi
 
+        # Precompute combined weights to optimize inner loop
+        k = inv_2dt
+        w_dot_0 = -k * interpolation_weight
+        w_dot_1 = -k * (1.0 - interpolation_weight)
+        w_dot_2 = -w_dot_0 # k * iw
+        w_dot_3 = -w_dot_1 # k * (1-iw)
+
+        F1 = factor_pq1_scaled
+        F2 = factor_pq2_scaled
+        F3 = factor_pq3_scaled
+
+        F23 = F2 + F3
+
+        # W_L_i = w_dot_i * F1 + sp_ci * F23
+        W_L_0 = w_dot_0 * F1 + sp_c0 * F23
+        W_L_1 = w_dot_1 * F1 + sp_c1 * F23
+        W_L_2 = w_dot_2 * F1 + sp_c2 * F23
+        W_L_3 = w_dot_3 * F1 + sp_c3 * F23
+
+        # W_M_i = -sp_ci * F2
+        W_M_0 = -sp_c0 * F2
+        W_M_1 = -sp_c1 * F2
+        W_M_2 = -sp_c2 * F2
+        W_M_3 = -sp_c3 * F2
+
+        combined_weights = {
+            'L': (W_L_0, W_L_1, W_L_2, W_L_3),
+            'M': (W_M_0, W_M_1, W_M_2, W_M_3),
+            'Q': None
+        }
+
         # Static pt for impermeable
         pt_static = None
         if not is_permeable:
@@ -846,19 +905,26 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
                         (-ambient_density_local * U0_static[1]) * geom_n_local[:, 1] + \
                         (-ambient_density_local * U0_static[2]) * geom_n_local[:, 2]
              pt_static = Qn_static * factor_pt2_scaled
+        else:
+             F_pt1 = factor_pt1_scaled
+             F_pt2 = factor_pt2_scaled
+
+             W_Q_0 = w_dot_0 * F_pt1 + sp_c0 * F_pt2
+             W_Q_1 = w_dot_1 * F_pt1 + sp_c1 * F_pt2
+             W_Q_2 = w_dot_2 * F_pt1 + sp_c2 * F_pt2
+             W_Q_3 = w_dot_3 * F_pt1 + sp_c3 * F_pt2
+
+             combined_weights['Q'] = (W_Q_0, W_Q_1, W_Q_2, W_Q_3)
 
         obs_data.append({
             'r_vec': r_vec,
-            'interpolation_weight': interpolation_weight,
             'j_star': j_star,
             't_range': t_range,
             'acoustic_pressure': acoustic_pressure,
             'len_p_act': len_p_act,
-            'sp_coeffs': (sp_c0, sp_c1, sp_c2, sp_c3),
-            'factors': (factor_pt1_scaled, factor_pt2_scaled, factor_pq1_scaled, factor_pq2_scaled, factor_pq3_scaled),
             'pt_static': pt_static,
             't_o': t_o,
-            'Lrdot_next': None
+            'combined_weights': combined_weights
         })
 
     # Helper to read local surface data slice
@@ -949,8 +1015,6 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
         for idx in range(n_obs):
             od = obs_data[idx]
             r_vec = od['r_vec']
-            sp_c0, sp_c1, sp_c2, sp_c3 = od['sp_coeffs']
-            iw = od['interpolation_weight']
 
             Lr0 = od['Lr0']
             Lr1 = od['Lr1']
@@ -962,30 +1026,21 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
             od['Lr1'] = Lr2
             od['Lr2'] = Lr3
 
-            if od['Lrdot_next'] is None:
-                Lrdot1 = (-Lr0+Lr2)*inv_2dt
-            else:
-                Lrdot1 = od['Lrdot_next']
-            Lrdot2 = (-Lr1+Lr3)*inv_2dt
-            od['Lrdot_next'] = Lrdot2
+            weights = od['combined_weights']
+            W_L = weights['L']
+            W_M = weights['M']
 
-            Lr = sp_c0*Lr0 + sp_c1*Lr1 + sp_c2*Lr2 + sp_c3*Lr3
-            Lrdot = Lrdot2 + iw * (Lrdot1 - Lrdot2)
-
-            Lm = sp_c0*Lm0 + sp_c1*Lm1 + sp_c2*Lm2 + sp_c3*Lm3
-
-            factors = od['factors']
-            factor_pt1_scaled, factor_pt2_scaled, factor_pq1_scaled, factor_pq2_scaled, factor_pq3_scaled = factors
+            # Optimized pq calculation using precomputed weights
+            # pq = Sum(W_L_i * Lri) + Sum(W_M_i * Lmi)
+            pq = W_L[0]*Lr0 + W_L[1]*Lr1 + W_L[2]*Lr2 + W_L[3]*Lr3 + \
+                 W_M[0]*Lm0 + W_M[1]*Lm1 + W_M[2]*Lm2 + W_M[3]*Lm3
 
             pt = None
             if not is_permeable:
                 pt = od['pt_static']
             else:
-                Qn = sp_c0*Qn0 + sp_c1*Qn1 + sp_c2*Qn2 + sp_c3*Qn3
-                Qndot = Qndot2 + iw * (Qndot1 - Qndot2)
-                pt = Qndot * factor_pt1_scaled + Qn * factor_pt2_scaled
-
-            pq = Lrdot * factor_pq1_scaled + (Lr - Lm) * factor_pq2_scaled + Lr * factor_pq3_scaled
+                W_Q = weights['Q']
+                pt = W_Q[0]*Qn0 + W_Q[1]*Qn1 + W_Q[2]*Qn2 + W_Q[3]*Qn3
 
             p = pt+pq
 
