@@ -89,7 +89,7 @@ def _precompute_spline_coeffs(interpolation_weight):
     return c0, c1, c2, c3
 
 
-def _calculate_source_terms_global(surf_file, f, ambient_pressure, ambient_density, speed_of_sound, mach_number, is_permeable, geom_n, skip_Qn=False):
+def _calculate_source_terms_global(surf_file, f, ambient_pressure, ambient_density, speed_of_sound, mach_number, is_permeable, geom_n, skip_Qn=False, geom_n_dot_mach=None):
     """
     Calculates observer-independent source terms (Qn, Lm, L components) for a single time step.
     This avoids recalculating these for every observer.
@@ -126,21 +126,28 @@ def _calculate_source_terms_global(surf_file, f, ambient_pressure, ambient_densi
         L1 = surf_p * geom_n[:, 0] + rho_v_dot_n * (surf_vx - U0[0])
         L2 = surf_p * geom_n[:, 1] + rho_v_dot_n * (surf_vy - U0[1])
         L3 = surf_p * geom_n[:, 2] + rho_v_dot_n * (surf_vz - U0[2])
+        Lm = -L1*mach_number[0] - L2*mach_number[1] - L3*mach_number[2]
     else:
         if not skip_Qn:
+            # Qn = (-rho0*U0) dot n
+            # Optimized: Explicit calculation to handle both scalar and array ambient_density
             Qn = (-ambient_density * U0[0]) * geom_n[:, 0] + \
                  (-ambient_density * U0[1]) * geom_n[:, 1] + \
                  (-ambient_density * U0[2]) * geom_n[:, 2]
         else:
             Qn = None
 
-        L1 = surf_p * geom_n[:, 0]
-        L2 = surf_p * geom_n[:, 1]
-        L3 = surf_p * geom_n[:, 2]
+        # Optimization: If n.M is provided (impermeable case), calculate Lm directly and skip L vector allocation
+        if geom_n_dot_mach is not None:
+             Lm = -surf_p * geom_n_dot_mach
+             L1 = L2 = L3 = None
+        else:
+             L1 = surf_p * geom_n[:, 0]
+             L2 = surf_p * geom_n[:, 1]
+             L3 = surf_p * geom_n[:, 2]
+             Lm = -L1*mach_number[0] - L2*mach_number[1] - L3*mach_number[2]
 
-    Lm = -L1*mach_number[0] - L2*mach_number[1] - L3*mach_number[2]
-
-    return {'Qn': Qn, 'Lm': Lm, 'L1': L1, 'L2': L2, 'L3': L3}
+    return {'Qn': Qn, 'Lm': Lm, 'L1': L1, 'L2': L2, 'L3': L3, 'surf_p': surf_p}
 
 
 #Functions for calculation of FWH source terms from surface pressure, mass and momentum flux data
@@ -524,6 +531,11 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
         n_obs = len(observer_locations)
         obs_data = [] # List to store data for each observer
 
+        # Optimization: Precompute n . M for impermeable surface optimization
+        geom_n_dot_mach = None
+        if not is_permeable:
+             geom_n_dot_mach = geom_n[:, 0]*mach_number[0] + geom_n[:, 1]*mach_number[1] + geom_n[:, 2]*mach_number[2]
+
         M2 = np.sum(mach_number**2)
         inv_4pi = 1.0 / (4.0 * np.pi)
         inv_2dt = 0.5 / dt
@@ -541,6 +553,11 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
             # Radiation vector
             r_vec = diff / R[:, np.newaxis] - mach_number
             Mr = np.dot(r_vec, -mach_number)
+
+            # Optimization: Precompute n . r for impermeable surface optimization
+            geom_n_dot_r = None
+            if not is_permeable:
+                geom_n_dot_r = geom_n[:, 0]*r_vec[:, 0] + geom_n[:, 1]*r_vec[:, 1] + geom_n[:, 2]*r_vec[:, 2]
 
             tau = np.array(R/speed_of_sound) #travelling time of sound from all sources
             t_o = source_times+min(tau) #observer times
@@ -624,6 +641,7 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
 
             obs_data.append({
                 'r_vec': r_vec,
+                'geom_n_dot_r': geom_n_dot_r,
                 'j_star': j_star,
                 't_range': t_range,
                 'acoustic_pressure': acoustic_pressure,
@@ -642,23 +660,30 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
 
         # Initialize buffers for t=0, 1, 2
         src_buf = [None] * 4
-        src_buf[0] = _calculate_source_terms_global(surf_file+'0.csv', filt, ambient_pressure, ambient_density, speed_of_sound, mach_number, is_permeable, geom_n, skip_Qn)
-        src_buf[1] = _calculate_source_terms_global(surf_file+'1.csv', filt, ambient_pressure, ambient_density, speed_of_sound, mach_number, is_permeable, geom_n, skip_Qn)
-        src_buf[2] = _calculate_source_terms_global(surf_file+'2.csv', filt, ambient_pressure, ambient_density, speed_of_sound, mach_number, is_permeable, geom_n, skip_Qn)
+        src_buf[0] = _calculate_source_terms_global(surf_file+'0.csv', filt, ambient_pressure, ambient_density, speed_of_sound, mach_number, is_permeable, geom_n, skip_Qn, geom_n_dot_mach)
+        src_buf[1] = _calculate_source_terms_global(surf_file+'1.csv', filt, ambient_pressure, ambient_density, speed_of_sound, mach_number, is_permeable, geom_n, skip_Qn, geom_n_dot_mach)
+        src_buf[2] = _calculate_source_terms_global(surf_file+'2.csv', filt, ambient_pressure, ambient_density, speed_of_sound, mach_number, is_permeable, geom_n, skip_Qn, geom_n_dot_mach)
 
         # Optimization: Pre-calculate Lr for initial time steps for each observer
         for idx in range(n_obs):
             od = obs_data[idx]
             r_vec = od['r_vec']
-            od['Lr0'] = src_buf[0]['L1']*r_vec[:,0] + src_buf[0]['L2']*r_vec[:,1] + src_buf[0]['L3']*r_vec[:,2]
-            od['Lr1'] = src_buf[1]['L1']*r_vec[:,0] + src_buf[1]['L2']*r_vec[:,1] + src_buf[1]['L3']*r_vec[:,2]
-            od['Lr2'] = src_buf[2]['L1']*r_vec[:,0] + src_buf[2]['L2']*r_vec[:,1] + src_buf[2]['L3']*r_vec[:,2]
+            if is_permeable:
+                od['Lr0'] = src_buf[0]['L1']*r_vec[:,0] + src_buf[0]['L2']*r_vec[:,1] + src_buf[0]['L3']*r_vec[:,2]
+                od['Lr1'] = src_buf[1]['L1']*r_vec[:,0] + src_buf[1]['L2']*r_vec[:,1] + src_buf[1]['L3']*r_vec[:,2]
+                od['Lr2'] = src_buf[2]['L1']*r_vec[:,0] + src_buf[2]['L2']*r_vec[:,1] + src_buf[2]['L3']*r_vec[:,2]
+            else:
+                # Optimized Lr calculation for impermeable surfaces
+                n_dot_r = od['geom_n_dot_r']
+                od['Lr0'] = src_buf[0]['surf_p'] * n_dot_r
+                od['Lr1'] = src_buf[1]['surf_p'] * n_dot_r
+                od['Lr2'] = src_buf[2]['surf_p'] * n_dot_r
 
         Qndot_next = None
 
         for j in range(1,len(source_times)-2):
             # Read new file
-            src_buf[3] = _calculate_source_terms_global(surf_file+str(j+2)+'.csv', filt, ambient_pressure, ambient_density, speed_of_sound, mach_number, is_permeable, geom_n, skip_Qn)
+            src_buf[3] = _calculate_source_terms_global(surf_file+str(j+2)+'.csv', filt, ambient_pressure, ambient_density, speed_of_sound, mach_number, is_permeable, geom_n, skip_Qn, geom_n_dot_mach)
 
             # Global Lm components
             Lm0 = src_buf[0]['Lm']
@@ -690,7 +715,11 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
                 Lr0 = od['Lr0']
                 Lr1 = od['Lr1']
                 Lr2 = od['Lr2']
-                Lr3 = src_buf[3]['L1']*r_vec[:,0] + src_buf[3]['L2']*r_vec[:,1] + src_buf[3]['L3']*r_vec[:,2]
+                if is_permeable:
+                    Lr3 = src_buf[3]['L1']*r_vec[:,0] + src_buf[3]['L2']*r_vec[:,1] + src_buf[3]['L3']*r_vec[:,2]
+                else:
+                    # Optimized Lr calculation for impermeable surfaces
+                    Lr3 = src_buf[3]['surf_p'] * od['geom_n_dot_r']
 
                 # Update cache for next iteration (shift)
                 od['Lr0'] = Lr1
@@ -808,6 +837,11 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
     n_obs = len(observer_locations)
     obs_data = [] # List to store data for each observer (local slices)
 
+    # Optimization: Precompute n . M for impermeable surface optimization
+    geom_n_dot_mach_local = None
+    if not is_permeable:
+         geom_n_dot_mach_local = geom_n_local[:, 0]*mach_number[0] + geom_n_local[:, 1]*mach_number[1] + geom_n_local[:, 2]*mach_number[2]
+
     M2 = np.sum(mach_number**2)
     inv_4pi = 1.0 / (4.0 * np.pi)
     inv_2dt = 0.5 / dt
@@ -825,6 +859,11 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
         # Radiation vector
         r_vec = diff / R[:, np.newaxis] - mach_number
         Mr = np.dot(r_vec, -mach_number)
+
+        # Optimization: Precompute n . r for impermeable surface optimization
+        geom_n_dot_r = None
+        if not is_permeable:
+            geom_n_dot_r = geom_n_local[:, 0]*r_vec[:, 0] + geom_n_local[:, 1]*r_vec[:, 1] + geom_n_local[:, 2]*r_vec[:, 2]
 
         tau = np.array(R/speed_of_sound) #travelling time of sound from all sources
 
@@ -918,6 +957,7 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
 
         obs_data.append({
             'r_vec': r_vec,
+            'geom_n_dot_r': geom_n_dot_r,
             'j_star': j_star,
             't_range': t_range,
             'acoustic_pressure': acoustic_pressure,
@@ -960,16 +1000,24 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
              L1 = surfS[:,4]*geom_n_local[:,0] + rho_v_dot_n * (surfS[:,1]-U0_vec[0])
              L2 = surfS[:,4]*geom_n_local[:,1] + rho_v_dot_n * (surfS[:,2]-U0_vec[1])
              L3 = surfS[:,4]*geom_n_local[:,2] + rho_v_dot_n * (surfS[:,3]-U0_vec[2])
+             Lm = -L1*mach_number[0] - L2*mach_number[1] - L3*mach_number[2]
         else:
              # Impermeable
              if not skip_Qn:
                  Qn = (-ambient_density_local*U0_vec[0])*geom_n_local[:,0] + (-ambient_density_local*U0_vec[1])*geom_n_local[:,1] + (-ambient_density_local*U0_vec[2])*geom_n_local[:,2]
-             L1 = surfS[:,0]*geom_n_local[:,0]
-             L2 = surfS[:,0]*geom_n_local[:,1]
-             L3 = surfS[:,0]*geom_n_local[:,2]
 
-        Lm = -L1*mach_number[0] - L2*mach_number[1] - L3*mach_number[2]
-        return {'Qn': Qn, 'Lm': Lm, 'L1': L1, 'L2': L2, 'L3': L3}
+             # Optimization: If n.M is provided (impermeable case), calculate Lm directly and skip L vector allocation
+             if geom_n_dot_mach_local is not None:
+                 Lm = -surfS[:, 0] * geom_n_dot_mach_local # surfS[:,0] is pressure
+                 L1 = L2 = L3 = None
+             else:
+                 L1 = surfS[:,0]*geom_n_local[:,0]
+                 L2 = surfS[:,0]*geom_n_local[:,1]
+                 L3 = surfS[:,0]*geom_n_local[:,2]
+                 Lm = -L1*mach_number[0] - L2*mach_number[1] - L3*mach_number[2]
+
+        surf_p = surfS[:, 4] if is_permeable else surfS[:, 0]
+        return {'Qn': Qn, 'Lm': Lm, 'L1': L1, 'L2': L2, 'L3': L3, 'surf_p': surf_p}
 
     # Initialize buffers for t=0, 1, 2
     src_buf = [None] * 4
@@ -982,7 +1030,11 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
         od = obs_data[idx]
         r_vec = od['r_vec']
         for k in range(3):
-            od[f'Lr{k}'] = src_buf[k]['L1']*r_vec[:,0] + src_buf[k]['L2']*r_vec[:,1] + src_buf[k]['L3']*r_vec[:,2]
+            if is_permeable:
+                od[f'Lr{k}'] = src_buf[k]['L1']*r_vec[:,0] + src_buf[k]['L2']*r_vec[:,1] + src_buf[k]['L3']*r_vec[:,2]
+            else:
+                # Optimized Lr calculation for impermeable surfaces
+                od[f'Lr{k}'] = src_buf[k]['surf_p'] * od['geom_n_dot_r']
 
     Qndot_next = None
 
@@ -1019,7 +1071,11 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
             Lr0 = od['Lr0']
             Lr1 = od['Lr1']
             Lr2 = od['Lr2']
-            Lr3 = src_buf[3]['L1']*r_vec[:,0] + src_buf[3]['L2']*r_vec[:,1] + src_buf[3]['L3']*r_vec[:,2]
+            if is_permeable:
+                Lr3 = src_buf[3]['L1']*r_vec[:,0] + src_buf[3]['L2']*r_vec[:,1] + src_buf[3]['L3']*r_vec[:,2]
+            else:
+                # Optimized Lr calculation for impermeable surfaces
+                Lr3 = src_buf[3]['surf_p'] * od['geom_n_dot_r']
 
             # Update cache for next iteration (shift)
             od['Lr0'] = Lr1
