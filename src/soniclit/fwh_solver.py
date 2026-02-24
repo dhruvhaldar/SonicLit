@@ -744,14 +744,23 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
 
                 p = pt+pq
 
-                j_adv = j + od['j_star'] + 1
-                j_cond = (j_adv >= od['t_range'][0])*(j_adv < od['t_range'][1])
+                # Optimization: Avoid allocating j_adv array and performing redundant min/max scans
+                # Original: j_adv = j + od['j_star'] + 1
+                j_star = od['j_star']
+                t_start, t_end = od['t_range']
+
+                # Optimized j_cond: j_star >= t_start - j - 1 AND j_star < t_end - j - 1
+                min_val = t_start - j - 1
+                max_val = t_end - j - 1
+                j_cond = (j_star >= min_val) * (j_star < max_val)
+
                 p *= j_cond
 
-                p_act = np.bincount(od['j_star'], weights=p, minlength=od['len_p_act'])
+                p_act = np.bincount(j_star, weights=p, minlength=od['len_p_act'])
 
-                start_idx = min(j_adv)
-                end_idx = max(j_adv)+1
+                # Optimization: Direct indexing. min(j_adv) = j + 1 + min(j_star) = j + 1
+                start_idx = j + 1
+                end_idx = start_idx + od['len_p_act']
                 od['acoustic_pressure'][start_idx:end_idx] += p_act
 
             # Shift buffer
@@ -1100,11 +1109,19 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
 
             p = pt+pq
 
-            j_adv = j + od['j_star'] + 1
-            j_cond = (j_adv >= od['t_range'][0])*(j_adv < od['t_range'][1])
+            # Optimization: Avoid allocating j_adv array and performing redundant min/max scans
+            # Original: j_adv = j + od['j_star'] + 1
+            j_star = od['j_star']
+            t_start, t_end = od['t_range']
+
+            # Optimized j_cond: j_star >= t_start - j - 1 AND j_star < t_end - j - 1
+            min_val = t_start - j - 1
+            max_val = t_end - j - 1
+            j_cond = (j_star >= min_val) * (j_star < max_val)
+
             p *= j_cond
 
-            p_act = np.bincount(od['j_star'], weights=p, minlength=od['len_p_act'])
+            p_act = np.bincount(j_star, weights=p, minlength=od['len_p_act'])
 
             # Accumulate locally
             # We align p_act (starting at 0) to j+1 in acoustic_pressure
