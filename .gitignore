@@ -7,3 +7,5 @@ bench_data/
 benchmark_output.txt
 benchmark_fwh.py
 bench_data/
+__pycache__/
+*.pyc
