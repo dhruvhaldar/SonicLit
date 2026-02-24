@@ -27,6 +27,10 @@ class TestWebUX(unittest.TestCase):
         text_areas = [ta.label for ta in at.text_area]
         self.assertNotIn("Coordinates List", text_areas)
 
+        # NEW CHECK: Verify expander is NOT present in Single Point mode
+        expanders = [e.label for e in at.expander if "Preview Observer Locations" in e.label]
+        self.assertEqual(len(expanders), 0, "Preview expander should not be visible in Single Point mode")
+
         # 2. Toggle to "Coordinate List"
         radio.set_value("Coordinate List").run(timeout=10)
 
@@ -78,6 +82,13 @@ class TestWebUX(unittest.TestCase):
         # Verify caption confirms 2 observers
         captions = [c.body for c in at.caption if "**2** observer(s)" in c.body]
         self.assertTrue(len(captions) > 0, "Caption did not update to reflect 2 observers parsed from CSV")
+
+        # NEW CHECK: Verify expander and dataframe preview exist
+        expanders = [e.label for e in at.expander if "Preview Observer Locations" in e.label]
+        self.assertTrue(len(expanders) > 0, "Preview expander not found in Coordinate List mode")
+
+        # We can also check if there is a dataframe inside
+        self.assertTrue(len(at.dataframe) > 0, "Dataframe preview not found")
 
 if __name__ == "__main__":
     unittest.main()

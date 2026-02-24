@@ -1,9 +1,8 @@
 dist/
 .venv/
-__pycache__/bench_data/
-benchmark_output.txt
-benchmark_fwh.py
+__pycache__/
+*.pyc
+.pytest_cache/
 bench_data/
 benchmark_output.txt
 benchmark_fwh.py
-bench_data/
