@@ -55,5 +55,29 @@ class TestWebUX(unittest.TestCase):
         # The old label was "Mach Number (e.g. [0.1, 0, 0])"
         self.assertFalse(any("Mach Number" in label for label in text_inputs))
 
+    def test_observer_csv_parsing(self):
+        """Test that observer coordinates can be entered as CSV/newline separated values."""
+        at = AppTest.from_file("src/soniclit/gui/web/app.py")
+        at.run(timeout=10)
+
+        # Switch to "Coordinate List"
+        radio = [r for r in at.radio if "Observer Location" in r.label][0]
+        radio.set_value("Coordinate List").run(timeout=10)
+
+        # Find the text area
+        text_area = [ta for ta in at.text_area if "Coordinates List" in ta.label][0]
+
+        # Input CSV format (mix of commas and newlines)
+        csv_input = "0, 0, 1\n0, 10, 10"
+        text_area.set_value(csv_input).run(timeout=10)
+
+        # Verify NO error messages about format
+        error_messages = [e.value for e in at.error]
+        self.assertFalse(any("Invalid format" in msg for msg in error_messages), f"Unexpected error for valid CSV: {error_messages}")
+
+        # Verify caption confirms 2 observers
+        captions = [c.body for c in at.caption if "**2** observer(s)" in c.body]
+        self.assertTrue(len(captions) > 0, "Caption did not update to reflect 2 observers parsed from CSV")
+
 if __name__ == "__main__":
     unittest.main()
