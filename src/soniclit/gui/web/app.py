@@ -341,9 +341,21 @@ with tab_spectral:
 
                     ax.set_xlabel("Frequency (Hz)")
                     ax.set_ylabel("PSD")
-                    ax.grid(True)
+                    ax.grid(True, which="both", linestyle='--', alpha=0.7)
 
                     st.pyplot(fig)
+
+                    # Export results
+                    spectrum_df = pd.DataFrame({"Frequency (Hz)": freq, "PSD": psd})
+                    csv_data = spectrum_df.to_csv(index=False).encode('utf-8')
+
+                    st.download_button(
+                        label="Download Spectrum CSV",
+                        data=csv_data,
+                        file_name="spectrum_analysis.csv",
+                        mime="text/csv",
+                        help="Download the calculated Power Spectral Density data."
+                    )
 
              except Exception as e:
                  st.error(f"Error: {e}")
