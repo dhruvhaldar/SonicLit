@@ -617,7 +617,8 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
             combined_weights = {
                 'L': (W_L_0, W_L_1, W_L_2, W_L_3),
                 'M': (W_M_0, W_M_1, W_M_2, W_M_3),
-                'Q': None
+                'Q': None,
+                'P': None  # For impermeable surface optimization
             }
 
             # Static pt for impermeable
@@ -628,6 +629,23 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
                             (-ambient_density * U0_static[1]) * geom_n[:, 1] + \
                             (-ambient_density * U0_static[2]) * geom_n[:, 2]
                  pt_static = Qn_static * factor_pt2_scaled
+
+                 # Optimization: Precompute combined weights for pressure (W_P)
+                 # This allows computing pq = sum(W_P * p) instead of sum(W_L * Lr + W_M * Lm)
+                 # W_P = W_L * (n.r) - W_M * (n.M)
+
+                 # Note: geom_n_dot_mach is n.M
+                 # geom_n_dot_r is n.r (calculated above as od['geom_n_dot_r']? No, it's a local var here)
+                 # Wait, geom_n_dot_r is calculated above in the loop:
+                 # geom_n_dot_r = geom_n[:, 0]*r_vec[:, 0] + ...
+
+                 W_P_0 = W_L_0 * geom_n_dot_r - W_M_0 * geom_n_dot_mach
+                 W_P_1 = W_L_1 * geom_n_dot_r - W_M_1 * geom_n_dot_mach
+                 W_P_2 = W_L_2 * geom_n_dot_r - W_M_2 * geom_n_dot_mach
+                 W_P_3 = W_L_3 * geom_n_dot_r - W_M_3 * geom_n_dot_mach
+
+                 combined_weights['P'] = (W_P_0, W_P_1, W_P_2, W_P_3)
+
             else:
                  F_pt1 = factor_pt1_scaled
                  F_pt2 = factor_pt2_scaled
@@ -710,30 +728,40 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
                 od = obs_data[idx]
                 r_vec = od['r_vec']
 
-                # Calculate Lr = L . r
-                # Optimization: Reuse cached Lr values to avoid redundant dot products
-                Lr0 = od['Lr0']
-                Lr1 = od['Lr1']
-                Lr2 = od['Lr2']
-                if is_permeable:
-                    Lr3 = src_buf[3]['L1']*r_vec[:,0] + src_buf[3]['L2']*r_vec[:,1] + src_buf[3]['L3']*r_vec[:,2]
-                else:
-                    # Optimized Lr calculation for impermeable surfaces
-                    Lr3 = src_buf[3]['surf_p'] * od['geom_n_dot_r']
-
-                # Update cache for next iteration (shift)
-                od['Lr0'] = Lr1
-                od['Lr1'] = Lr2
-                od['Lr2'] = Lr3
-
                 weights = od['combined_weights']
-                W_L = weights['L']
-                W_M = weights['M']
+                pq = None
 
-                # Optimized pq calculation using precomputed weights
-                # pq = Sum(W_L_i * Lri) + Sum(W_M_i * Lmi)
-                pq = W_L[0]*Lr0 + W_L[1]*Lr1 + W_L[2]*Lr2 + W_L[3]*Lr3 + \
-                     W_M[0]*Lm0 + W_M[1]*Lm1 + W_M[2]*Lm2 + W_M[3]*Lm3
+                if is_permeable:
+                    # Calculate Lr = L . r
+                    # Optimization: Reuse cached Lr values to avoid redundant dot products
+                    Lr0 = od['Lr0']
+                    Lr1 = od['Lr1']
+                    Lr2 = od['Lr2']
+                    Lr3 = src_buf[3]['L1']*r_vec[:,0] + src_buf[3]['L2']*r_vec[:,1] + src_buf[3]['L3']*r_vec[:,2]
+
+                    # Update cache for next iteration (shift)
+                    od['Lr0'] = Lr1
+                    od['Lr1'] = Lr2
+                    od['Lr2'] = Lr3
+
+                    W_L = weights['L']
+                    W_M = weights['M']
+
+                    # Optimized pq calculation using precomputed weights
+                    # pq = Sum(W_L_i * Lri) + Sum(W_M_i * Lmi)
+                    pq = W_L[0]*Lr0 + W_L[1]*Lr1 + W_L[2]*Lr2 + W_L[3]*Lr3 + \
+                         W_M[0]*Lm0 + W_M[1]*Lm1 + W_M[2]*Lm2 + W_M[3]*Lm3
+                else:
+                    # Optimized path for impermeable surfaces
+                    # Uses precomputed W_P weights combined with raw pressure data
+                    # avoiding Lr calculation and Lm access
+                    W_P = weights['P']
+                    p0 = src_buf[0]['surf_p']
+                    p1 = src_buf[1]['surf_p']
+                    p2 = src_buf[2]['surf_p']
+                    p3 = src_buf[3]['surf_p']
+
+                    pq = W_P[0]*p0 + W_P[1]*p1 + W_P[2]*p2 + W_P[3]*p3
 
                 pt = None
                 if not is_permeable:
@@ -942,7 +970,8 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
         combined_weights = {
             'L': (W_L_0, W_L_1, W_L_2, W_L_3),
             'M': (W_M_0, W_M_1, W_M_2, W_M_3),
-            'Q': None
+            'Q': None,
+            'P': None  # For impermeable surface optimization
         }
 
         # Static pt for impermeable
@@ -953,6 +982,18 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
                         (-ambient_density_local * U0_static[1]) * geom_n_local[:, 1] + \
                         (-ambient_density_local * U0_static[2]) * geom_n_local[:, 2]
              pt_static = Qn_static * factor_pt2_scaled
+
+             # Optimization: Precompute combined weights for pressure (W_P)
+             # This allows computing pq = sum(W_P * p) instead of sum(W_L * Lr + W_M * Lm)
+             # W_P = W_L * (n.r) - W_M * (n.M)
+
+             W_P_0 = W_L_0 * geom_n_dot_r - W_M_0 * geom_n_dot_mach_local
+             W_P_1 = W_L_1 * geom_n_dot_r - W_M_1 * geom_n_dot_mach_local
+             W_P_2 = W_L_2 * geom_n_dot_r - W_M_2 * geom_n_dot_mach_local
+             W_P_3 = W_L_3 * geom_n_dot_r - W_M_3 * geom_n_dot_mach_local
+
+             combined_weights['P'] = (W_P_0, W_P_1, W_P_2, W_P_3)
+
         else:
              F_pt1 = factor_pt1_scaled
              F_pt2 = factor_pt2_scaled
@@ -1077,28 +1118,38 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
             od = obs_data[idx]
             r_vec = od['r_vec']
 
-            Lr0 = od['Lr0']
-            Lr1 = od['Lr1']
-            Lr2 = od['Lr2']
-            if is_permeable:
-                Lr3 = src_buf[3]['L1']*r_vec[:,0] + src_buf[3]['L2']*r_vec[:,1] + src_buf[3]['L3']*r_vec[:,2]
-            else:
-                # Optimized Lr calculation for impermeable surfaces
-                Lr3 = src_buf[3]['surf_p'] * od['geom_n_dot_r']
-
-            # Update cache for next iteration (shift)
-            od['Lr0'] = Lr1
-            od['Lr1'] = Lr2
-            od['Lr2'] = Lr3
-
             weights = od['combined_weights']
-            W_L = weights['L']
-            W_M = weights['M']
+            pq = None
 
-            # Optimized pq calculation using precomputed weights
-            # pq = Sum(W_L_i * Lri) + Sum(W_M_i * Lmi)
-            pq = W_L[0]*Lr0 + W_L[1]*Lr1 + W_L[2]*Lr2 + W_L[3]*Lr3 + \
-                 W_M[0]*Lm0 + W_M[1]*Lm1 + W_M[2]*Lm2 + W_M[3]*Lm3
+            if is_permeable:
+                Lr0 = od['Lr0']
+                Lr1 = od['Lr1']
+                Lr2 = od['Lr2']
+                Lr3 = src_buf[3]['L1']*r_vec[:,0] + src_buf[3]['L2']*r_vec[:,1] + src_buf[3]['L3']*r_vec[:,2]
+
+                # Update cache for next iteration (shift)
+                od['Lr0'] = Lr1
+                od['Lr1'] = Lr2
+                od['Lr2'] = Lr3
+
+                W_L = weights['L']
+                W_M = weights['M']
+
+                # Optimized pq calculation using precomputed weights
+                # pq = Sum(W_L_i * Lri) + Sum(W_M_i * Lmi)
+                pq = W_L[0]*Lr0 + W_L[1]*Lr1 + W_L[2]*Lr2 + W_L[3]*Lr3 + \
+                     W_M[0]*Lm0 + W_M[1]*Lm1 + W_M[2]*Lm2 + W_M[3]*Lm3
+            else:
+                # Optimized path for impermeable surfaces
+                # Uses precomputed W_P weights combined with raw pressure data
+                # avoiding Lr calculation and Lm access
+                W_P = weights['P']
+                p0 = src_buf[0]['surf_p']
+                p1 = src_buf[1]['surf_p']
+                p2 = src_buf[2]['surf_p']
+                p3 = src_buf[3]['surf_p']
+
+                pq = W_P[0]*p0 + W_P[1]*p1 + W_P[2]*p2 + W_P[3]*p3
 
             pt = None
             if not is_permeable:
