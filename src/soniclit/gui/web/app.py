@@ -324,23 +324,43 @@ with tab_spectral:
     with col2:
         if uploaded_sig:
              try:
-                time = df[time_col].values
+                time_vals = df[time_col].values
                 sig = df[sig_col].values
+
+                # Calculate metrics
+                fs = sa.sampling_freq(time_vals)
+                nyquist = fs / 2.0
+
+                # Display metrics
+                m1, m2, m3 = st.columns(3)
+                m1.metric("Sampling Rate", f"{fs} Hz")
+                m2.metric("Nyquist Freq", f"{nyquist} Hz")
 
                 with st.spinner("Computing spectrum..."):
                     fig, ax = plt.subplots()
 
                     if method == "FFT":
-                        freq, df_bin, psd = sa.fft_spectrum(time, sig)
+                        freq, df_bin, psd = sa.fft_spectrum(time_vals, sig)
                         ax.loglog(freq, psd)
-                        ax.set_title("FFT Spectrum")
+                        ax.set_title(f"FFT Spectrum: {sig_col}")
                     elif method == "Welch":
-                        freq, df_bin, psd = sa.welch_spectrum(time, sig, chunks=chunks, overlap=overlap)
+                        freq, df_bin, psd = sa.welch_spectrum(time_vals, sig, chunks=chunks, overlap=overlap)
                         ax.loglog(freq, psd)
-                        ax.set_title("Welch Spectrum")
+                        ax.set_title(f"Welch Spectrum: {sig_col}")
+
+                    m3.metric("Freq Resolution", f"{df_bin:.2f} Hz")
 
                     ax.set_xlabel("Frequency (Hz)")
-                    ax.set_ylabel("PSD")
+
+                    # Heuristic for units
+                    if "pressure" in sig_col.lower() or "p" == sig_col.lower():
+                        y_unit = "Pa²/Hz"
+                    elif "velocity" in sig_col.lower() or "u" in sig_col.lower():
+                        y_unit = "(m/s)²/Hz"
+                    else:
+                        y_unit = "Units²/Hz"
+
+                    ax.set_ylabel(f"PSD ({y_unit})")
                     ax.grid(True, which="both", linestyle='--', alpha=0.7)
 
                     st.pyplot(fig)
