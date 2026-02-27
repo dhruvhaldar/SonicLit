@@ -135,6 +135,9 @@ with tab_fwh:
                             break
                     if obs_valid:
                         st.caption(f"✅ Ready to compute for **{len(val)}** observer(s).")
+                        if obs_mode == "Coordinate List" and len(val) > 0:
+                            with st.expander("👀 Preview Parsed Coordinates"):
+                                st.dataframe(pd.DataFrame(val, columns=["X (m)", "Y (m)", "Z (m)"]), use_container_width=True)
         except:
             st.error("Invalid format. Use Python list syntax `[[x,y,z]]` OR CSV `x, y, z`")
             obs_valid = False
