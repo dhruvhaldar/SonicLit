@@ -777,19 +777,22 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
                 j_star = od['j_star']
                 t_start, t_end = od['t_range']
 
-                # Optimized j_cond: j_star >= t_start - j - 1 AND j_star < t_end - j - 1
+                p_act = np.bincount(j_star, weights=p, minlength=od['len_p_act'])
+
+                # Optimization: Zero-out bounds on p_act directly, rather than applying an O(N) mask to p
                 min_val = t_start - j - 1
                 max_val = t_end - j - 1
-                j_cond = (j_star >= min_val) * (j_star < max_val)
 
-                p *= j_cond
-
-                p_act = np.bincount(j_star, weights=p, minlength=od['len_p_act'])
+                if min_val > 0:
+                    p_act[:min_val] = 0
+                # Ensure max_val isn't out of bounds for the array before masking
+                if max_val < len(p_act):
+                    p_act[max_val:] = 0
 
                 # Optimization: Direct indexing. min(j_adv) = j + 1 + min(j_star) = j + 1
                 start_idx = j + 1
                 end_idx = start_idx + od['len_p_act']
-                od['acoustic_pressure'][start_idx:end_idx] += p_act
+                od['acoustic_pressure'][start_idx:end_idx] += p_act[:od['len_p_act']]
 
             # Shift buffer
             src_buf[0] = src_buf[1]
@@ -1165,18 +1168,20 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
             j_star = od['j_star']
             t_start, t_end = od['t_range']
 
-            # Optimized j_cond: j_star >= t_start - j - 1 AND j_star < t_end - j - 1
+            p_act = np.bincount(j_star, weights=p, minlength=od['len_p_act'])
+
+            # Optimization: Zero-out bounds on p_act directly, rather than applying an O(N) mask to p
             min_val = t_start - j - 1
             max_val = t_end - j - 1
-            j_cond = (j_star >= min_val) * (j_star < max_val)
 
-            p *= j_cond
-
-            p_act = np.bincount(j_star, weights=p, minlength=od['len_p_act'])
+            if min_val > 0:
+                p_act[:min_val] = 0
+            if max_val < len(p_act):
+                p_act[max_val:] = 0
 
             # Accumulate locally
             # We align p_act (starting at 0) to j+1 in acoustic_pressure
-            od['acoustic_pressure'][j+1 : j+1+od['len_p_act']] += p_act
+            od['acoustic_pressure'][j+1 : j+1+od['len_p_act']] += p_act[:od['len_p_act']]
 
         # Shift buffer
         src_buf[0] = src_buf[1]
