@@ -19,10 +19,15 @@ class TestWebSecurityDoS(unittest.TestCase):
         radio.set_value("Coordinate List").run(timeout=10)
 
         obs_input = None
-        for widget in at.text_input:
+        for widget in at.text_area:
             if "Coordinates List" in widget.label:
                 obs_input = widget
                 break
+        if not obs_input:
+            for widget in at.text_input:
+                if "Coordinates List" in widget.label:
+                    obs_input = widget
+                    break
 
         self.assertIsNotNone(obs_input, "Could not find 'Coordinates List' input.")
 
