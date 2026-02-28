@@ -130,10 +130,8 @@ def _calculate_source_terms_global(surf_file, f, ambient_pressure, ambient_densi
     else:
         if not skip_Qn:
             # Qn = (-rho0*U0) dot n
-            # Optimized: Explicit calculation to handle both scalar and array ambient_density
-            Qn = (-ambient_density * U0[0]) * geom_n[:, 0] + \
-                 (-ambient_density * U0[1]) * geom_n[:, 1] + \
-                 (-ambient_density * U0[2]) * geom_n[:, 2]
+            # Optimized: np.dot leverages BLAS for faster execution
+            Qn = -ambient_density * np.dot(geom_n, U0)
         else:
             Qn = None
 
@@ -330,7 +328,8 @@ def _calculate_source_terms_local(surface_data_local, preprocessed_data_local, a
     else:
         # surfS columns: [pressure]
         if not skip_Qn:
-            Qn = (-rho0S*U0[0])*preS[:,0] + (-rho0S*U0[1])*preS[:,1] + (-rho0S*U0[2])*preS[:,2]
+            # Optimized: np.dot leverages BLAS for faster execution
+            Qn = -rho0S * np.dot(preS[:, :3], U0)
 
         L1 = surfS[:,0]*preS[:,0]
         L2 = surfS[:,0]*preS[:,1]
@@ -625,9 +624,8 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
             pt_static = None
             if not is_permeable:
                  U0_static = speed_of_sound * mach_number
-                 Qn_static = (-ambient_density * U0_static[0]) * geom_n[:, 0] + \
-                            (-ambient_density * U0_static[1]) * geom_n[:, 1] + \
-                            (-ambient_density * U0_static[2]) * geom_n[:, 2]
+                 # Optimized: np.dot leverages BLAS for faster execution
+                 Qn_static = -ambient_density * np.dot(geom_n, U0_static)
                  pt_static = Qn_static * factor_pt2_scaled
 
                  # Optimization: Precompute combined weights for pressure (W_P)
@@ -978,9 +976,8 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
         pt_static = None
         if not is_permeable:
              U0_static = speed_of_sound * mach_number
-             Qn_static = (-ambient_density_local * U0_static[0]) * geom_n_local[:, 0] + \
-                        (-ambient_density_local * U0_static[1]) * geom_n_local[:, 1] + \
-                        (-ambient_density_local * U0_static[2]) * geom_n_local[:, 2]
+             # Optimized: np.dot leverages BLAS for faster execution
+             Qn_static = -ambient_density_local * np.dot(geom_n_local, U0_static)
              pt_static = Qn_static * factor_pt2_scaled
 
              # Optimization: Precompute combined weights for pressure (W_P)
@@ -1054,7 +1051,8 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
         else:
              # Impermeable
              if not skip_Qn:
-                 Qn = (-ambient_density_local*U0_vec[0])*geom_n_local[:,0] + (-ambient_density_local*U0_vec[1])*geom_n_local[:,1] + (-ambient_density_local*U0_vec[2])*geom_n_local[:,2]
+                 # Optimized: np.dot leverages BLAS for faster execution
+                 Qn = -ambient_density_local * np.dot(geom_n_local, U0_vec)
 
              # Optimization: If n.M is provided (impermeable case), calculate Lm directly and skip L vector allocation
              if geom_n_dot_mach_local is not None:
