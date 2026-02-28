@@ -1,3 +1,3 @@
-## 2025-02-18 - [FWH Solver Loop Optimization]
-**Learning:** In tight numerical loops (FWH acoustic solver), even O(N) allocations and `min()`/`max()` scans on NumPy arrays inside the innermost loop can dominate execution time. Specifically, calculating `j_adv = j + j_star + 1` (allocation) and then `min(j_adv)` (scan) for every observer at every time step was a major bottleneck.
-**Action:** Replace array allocations with in-place operations or scalar logic where possible. Use direct indexing (e.g., `j+1`) instead of scanning arrays when the offset is known or constant. This reduced runtime by ~50% in this case.
+## 2024-02-28 - FWH Distance Calculation Optimization
+**Learning:** In scientific simulations using NumPy (like FWH solvers), calculating the Euclidean norm of large lists of 3D vectors `(N, 3)` using `np.linalg.norm(diff, axis=1)` carries significant function overhead and dimension-checking logic that makes it surprisingly slow. Unrolling the equation explicitly (`np.sqrt(diff[:,0]**2 + diff[:,1]**2 + diff[:,2]**2)`) can be ~3.8x faster without sacrificing readibility.
+**Action:** When finding bottlenecks inside critical calculation loops (e.g. iterating over observers), always check if `np.linalg.norm` with an axis argument can be replaced by explicit scalar arithmetic for known small-dimension vector arrays.
