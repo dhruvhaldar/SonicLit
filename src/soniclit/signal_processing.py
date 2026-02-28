@@ -526,10 +526,13 @@ def cross_spectrum_fft(time1, signal1, time2, signal2, save_output : bool = Fals
     signal2 = signal2 - np.mean(signal2) # mean-removed part of the signal
     sig2_fft = np.fft.rfft(signal2)
     
+    # OPTIMIZATION: Calculate magnitude of product as product of magnitudes.
+    # |A * conj(B)| = |A| * |conj(B)| = |A| * |B|
+    # This avoids computationally expensive complex multiplication and conjugation.
     if scale_spectrum == True:
-        cross_power_spectral_density = abs(sig1_fft*np.conjugate(sig2_fft))/(fs1*len(signal1))
+        cross_power_spectral_density = (np.abs(sig1_fft) * np.abs(sig2_fft))/(fs1*len(signal1))
     else:
-        cross_power_spectral_density = abs(sig1_fft*np.conjugate(sig2_fft))
+        cross_power_spectral_density = np.abs(sig1_fft) * np.abs(sig2_fft)
     
     if db_scale == True:
         cross_power_spectral_density = 10.*np.log10(cross_power_spectral_density/4e-10)
