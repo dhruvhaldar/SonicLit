@@ -175,7 +175,23 @@ with tab_fwh:
         temp_val = st.number_input("Temperature (K)", value=298.0, help="Ambient temperature in Kelvin (affects speed of sound).")
         perm_val = st.checkbox("Permeable Surface", value=False, help="Enable if using a permeable integration surface.")
 
-        run_btn = st.button("Run FWH Solver", type="primary", disabled=not (obs_valid and ma_valid))
+
+        # UX Enhancement: Explain why the run button is disabled
+        button_help = "Start the FWH solver"
+        if uploaded_surf_zip is None:
+            button_help = "Upload a surface data ZIP first to run the solver"
+        elif not obs_valid:
+            button_help = "Fix observer coordinates format to run"
+        elif not ma_valid:
+            button_help = "Fix Mach vector format to run"
+
+        run_btn = st.button(
+            "Run FWH Solver",
+            type="primary",
+            disabled=not (obs_valid and ma_valid and uploaded_surf_zip is not None),
+            help=button_help
+        )
+
 
     with col2:
         st.subheader("Results")
