@@ -535,7 +535,8 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
         if not is_permeable:
              geom_n_dot_mach = geom_n[:, 0]*mach_number[0] + geom_n[:, 1]*mach_number[1] + geom_n[:, 2]*mach_number[2]
 
-        M2 = np.sum(mach_number**2)
+        # Optimization: Explicit scalar arithmetic is significantly faster than np.sum for length-3 arrays
+        M2 = mach_number[0]**2 + mach_number[1]**2 + mach_number[2]**2
         inv_4pi = 1.0 / (4.0 * np.pi)
         inv_2dt = 0.5 / dt
 
@@ -878,7 +879,8 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
     if not is_permeable:
          geom_n_dot_mach_local = geom_n_local[:, 0]*mach_number[0] + geom_n_local[:, 1]*mach_number[1] + geom_n_local[:, 2]*mach_number[2]
 
-    M2 = np.sum(mach_number**2)
+    # Optimization: Explicit scalar arithmetic is significantly faster than np.sum for length-3 arrays
+    M2 = mach_number[0]**2 + mach_number[1]**2 + mach_number[2]**2
     inv_4pi = 1.0 / (4.0 * np.pi)
     inv_2dt = 0.5 / dt
 
