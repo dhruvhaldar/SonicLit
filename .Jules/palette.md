@@ -51,3 +51,7 @@
 ## 2025-05-15 - Explicit Units in Input Labels
 **Learning:** In scientific applications, ambiguity about units (e.g., meters vs feet) is a critical usability issue. Relying solely on tooltips or documentation is insufficient as users scan forms quickly.
 **Action:** Always include units directly in the label of input fields (e.g., "Observer X (m)", "Time Step (s)") to provide immediate, unambiguous context.
+
+## 2026-03-01 - Data Preview for Bulk Text Inputs
+**Learning:** For bulk data entry (like coordinate lists), users lack confidence that their custom format (CSV/Python list) was parsed correctly before hitting run. A simple summary (e.g., "2 observers") is good, but a visual table preview guarantees understanding.
+**Action:** Implement a data preview using `st.dataframe` inside an `st.expander` for bulk text inputs after parsing, allowing users to verify the exact values and column mappings before execution.
