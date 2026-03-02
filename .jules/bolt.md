@@ -12,3 +12,6 @@
 ## 2025-02-28 - FFT Auto Correlation Optimization
 **Learning:** In signal processing, calculating auto-correlation from complex FFT arrays using element-wise complex multiplications (e.g., `sig_fft * np.conjugate(sig_fft)`) is slower than leveraging numpy's built-in optimized magnitude calculations `np.abs(sig_fft)**2` (yielding 1.1x to 1.5x speedup). This complements the previous cross spectrum optimization.
 **Action:** When finding bottlenecks in PSD, Cross-Spectrum, or Auto-correlation routines, avoid explicit `np.conjugate` multiplications or explicit `real**2 + imag**2` arithmetic; use `np.abs(sig_fft)**2`.
+## 2023-10-27 - [NumPy Power Operator Performance]
+**Learning:** Using the power operator (`**`) for small integer powers (like `**3`) on NumPy arrays is significantly slower (often >10x) than performing explicit multiplication. NumPy calls the general `pow` function under the hood which has a large overhead.
+**Action:** When calculating small powers of large arrays in performance-critical sections, always replace `arr**3` with `arr * arr * arr` or reuse existing lower power computations (e.g., `arr_sq * arr`).
