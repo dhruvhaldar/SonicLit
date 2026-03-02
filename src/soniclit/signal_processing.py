@@ -278,7 +278,9 @@ def auto_corr(signal, save_output : bool = False, out_dir : str = "", normalised
     sig_fft = np.fft.rfft(signal, n=nfft)
     # The inverse real FFT of power spectrum gives auto-correlation for positive and negative lags.
     # The first n elements correspond to the positive lags (0 to n-1)
-    auto_correlation_full = np.fft.irfft(sig_fft * np.conjugate(sig_fft), n=nfft)
+    # OPTIMIZATION: Calculate squared magnitude directly using numpy abs
+    # np.abs(sig_fft)**2 is highly optimized in C and avoids expensive complex multiplication and conjugation.
+    auto_correlation_full = np.fft.irfft(np.abs(sig_fft)**2, n=nfft)
     auto_correlation = auto_correlation_full[:n]
 
     if normalised == True:

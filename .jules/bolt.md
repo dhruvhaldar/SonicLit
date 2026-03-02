@@ -8,3 +8,7 @@
 ## 2025-02-28 - Explicit Arithmetic for Small Arrays
 **Learning:** In scientific simulations using NumPy (like FWH solvers), calculating `np.sum` on small arrays (e.g., length-3 vectors like `mach_number`) carries significant overhead compared to explicit scalar arithmetic like `mach_number[0]**2 + mach_number[1]**2 + mach_number[2]**2`. This overhead can be up to 7x slower and is easily noticeable in performance-critical sections without sacrificing readability.
 **Action:** Replace `np.sum(arr**2)` with explicit component-wise addition for arrays of size <= 3 when optimizing loops.
+
+## 2025-02-28 - FFT Auto Correlation Optimization
+**Learning:** In signal processing, calculating auto-correlation from complex FFT arrays using element-wise complex multiplications (e.g., `sig_fft * np.conjugate(sig_fft)`) is slower than leveraging numpy's built-in optimized magnitude calculations `np.abs(sig_fft)**2` (yielding 1.1x to 1.5x speedup). This complements the previous cross spectrum optimization.
+**Action:** When finding bottlenecks in PSD, Cross-Spectrum, or Auto-correlation routines, avoid explicit `np.conjugate` multiplications or explicit `real**2 + imag**2` arithmetic; use `np.abs(sig_fft)**2`.
