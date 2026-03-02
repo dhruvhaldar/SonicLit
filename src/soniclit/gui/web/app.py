@@ -201,7 +201,12 @@ with tab_fwh:
         st.subheader("Results")
         result_container = st.container()
         if not run_btn:
-             result_container.info("Configure parameters and run the solver to see results here.")
+             result_container.info("👋 Configure parameters and run the solver to see results here.")
+             result_container.markdown("""
+                **Expected Results:**
+                - A downloadable ZIP archive containing the computed acoustic data.
+                - Preview images of the generated plots (if applicable).
+             """)
 
     if run_btn:
         if uploaded_surf_zip is None:
