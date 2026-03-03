@@ -327,14 +327,14 @@ with tab_spectral:
                 # Smart default selection
                 time_candidates = ["time", "t", "seconds", "s"]
                 time_idx = get_column_index(df.columns, time_candidates)
-                time_col = st.selectbox("Select Time Column", df.columns, index=time_idx)
+                time_col = st.selectbox("Select Time Column", df.columns, index=time_idx, help="Select the column containing time data (must be in seconds).")
 
                 sig_candidates = ["pressure", "p", "signal", "velocity", "u", "amplitude"]
                 available_cols = [c for c in df.columns if c != time_col]
                 # Recalculate index for the filtered list
                 sig_idx = get_column_index(available_cols, sig_candidates)
 
-                sig_col = st.selectbox("Select Signal Column", available_cols, index=sig_idx)
+                sig_col = st.selectbox("Select Signal Column", available_cols, index=sig_idx, help="Select the column containing the measurement data to analyze (e.g., pressure, velocity).")
 
                 method = st.selectbox("Method", ["FFT", "Welch"], help="Choose 'FFT' for standard spectrum or 'Welch' for smoothed periodogram.")
 
@@ -344,7 +344,7 @@ with tab_spectral:
                         chunks = st.number_input("Chunks", value=4, step=1, min_value=1, max_value=1000, help="Number of segments to split the signal into (higher = smoother but lower frequency resolution).")
                         chunks = min(chunks, 1000)
                     with col_w2:
-                        overlap = st.number_input("Overlap", value=0.5, min_value=0.0, max_value=0.99, help="Fraction of overlap between segments (typically 0.5 or 50%).")
+                        overlap = st.number_input("Overlap (Fraction)", value=0.5, min_value=0.0, max_value=0.99, help="Fraction of overlap between segments (typically 0.5 or 50%).")
 
     with col2:
         if uploaded_sig:
@@ -358,8 +358,8 @@ with tab_spectral:
 
                 # Display metrics
                 m1, m2, m3 = st.columns(3)
-                m1.metric("Sampling Rate", f"{fs} Hz")
-                m2.metric("Nyquist Freq", f"{nyquist} Hz")
+                m1.metric("Sampling Rate", f"{fs} Hz", help="Number of samples recorded per second. Determines the maximum resolvable frequency.")
+                m2.metric("Nyquist Freq", f"{nyquist} Hz", help="Maximum frequency that can be accurately represented without aliasing (half of the sampling rate).")
 
                 with st.spinner("Computing spectrum..."):
                     fig, ax = plt.subplots()
@@ -373,7 +373,7 @@ with tab_spectral:
                         ax.loglog(freq, psd)
                         ax.set_title(f"Welch Spectrum: {sig_col}")
 
-                    m3.metric("Freq Resolution", f"{df_bin:.2f} Hz")
+                    m3.metric("Freq Resolution", f"{df_bin:.3f} Hz", help="Frequency spacing between points in the spectrum. Finer resolution requires longer time segments.")
 
                     ax.set_xlabel("Frequency (Hz)")
 

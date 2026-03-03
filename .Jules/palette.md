@@ -55,3 +55,7 @@
 ## 2026-03-01 - Data Preview for Bulk Text Inputs
 **Learning:** For bulk data entry (like coordinate lists), users lack confidence that their custom format (CSV/Python list) was parsed correctly before hitting run. A simple summary (e.g., "2 observers") is good, but a visual table preview guarantees understanding.
 **Action:** Implement a data preview using `st.dataframe` inside an `st.expander` for bulk text inputs after parsing, allowing users to verify the exact values and column mappings before execution.
+
+## 2026-03-03 - Contextual Help for Technical Metrics
+**Learning:** While input tooltips help users configure settings, derived technical metrics (like "Nyquist Freq" or "Freq Resolution") often leave users guessing about their exact implications on the final results. Adding explicit `help` text to `st.metric` widgets bridges the gap between raw numbers and domain understanding.
+**Action:** Always populate the `help` parameter for `st.metric` displays in technical dashboards to explain both the definition and the practical impact of the metric.
