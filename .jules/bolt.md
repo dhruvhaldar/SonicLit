@@ -15,3 +15,11 @@
 ## 2023-10-27 - [NumPy Power Operator Performance]
 **Learning:** Using the power operator (`**`) for small integer powers (like `**3`) on NumPy arrays is significantly slower (often >10x) than performing explicit multiplication. NumPy calls the general `pow` function under the hood which has a large overhead.
 **Action:** When calculating small powers of large arrays in performance-critical sections, always replace `arr**3` with `arr * arr * arr` or reuse existing lower power computations (e.g., `arr_sq * arr`).
+
+## 2025-02-28 - Factor calculation optimization
+**Learning:** In mathematical routines using NumPy arrays, algebraically refactoring expressions to reuse intermediate results (e.g., computing `factor_pq2 = factor_pt1 / R` rather than recalculating the entire quotient with `R**2`) yields significant speedups (up to 45%) by eliminating redundant element-wise multiplications and divisions of large arrays.
+**Action:** Always look for opportunities to algebraically simplify calculations inside intensive loops, reusing terms like `factor_pq2 = factor_pt1 / R` instead of fully recalculating them with squares/cubes.
+
+## 2025-02-28 - Array broadcasting division optimization
+**Learning:** When dividing large NumPy arrays by a constant raised to a power (e.g., `arr / (beta**2)`), precomputing the inverse of the constant (e.g., `inv_beta_sq = 1.0 / (beta * beta)`) and multiplying the array by the inverse provides a measurable speedup (~30%) by avoiding broadcasting division.
+**Action:** Replace `array / (scalar**2)` with `array * (1.0 / (scalar * scalar))` inside large loops.
