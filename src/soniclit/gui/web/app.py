@@ -282,7 +282,8 @@ with tab_fwh:
                                 label="Download Results (ZIP)",
                                 data=fp,
                                 file_name="fwh_results.zip",
-                                mime="application/zip"
+                                mime="application/zip",
+                                help="Download a ZIP archive containing the computed acoustic data and preview images."
                             )
 
                         # Plot preview if PNGs exist
