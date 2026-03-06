@@ -1,7 +1,7 @@
 """
 Function library to calculate the power spectra of an independant or a pair of input stationary signals, using common methods including simple FFT, Welch periodogram, etc.
 
-Check out this `StackExchange DSP forum question <https://dsp.stackexchange.com/questions/48216/understanding-fft-fft-size-and-bins>`_ 
+Check out this `StackExchange DSP forum question <https://dsp.stackexchange.com/questions/48216/understanding-fft-fft-size-and-bins>`_
 for a brief explanation on signal processing methods. You will be able to navigate from there
 in case you would like to understand Digital Signal Processing further.
 
@@ -35,7 +35,7 @@ def next_greater_power_of_2(num : int):
     Example
     --------
     >>> next_greater_power_of_2(5)
-    
+
     """
     return 2**(num-1).bit_length()
 
@@ -43,7 +43,7 @@ def next_greater_power_of_2(num : int):
 def sampling_freq(time):
     """
     Function to compute the sampling frequency of an input time series.
-    
+
 
     Parameters
     ----------
@@ -60,12 +60,12 @@ def sampling_freq(time):
     >>> time_series = np.linspace(0, 0.3, 1e5) # time series with 1e5 samples
     >>> fs = sampling_freq(time_series) # an integer value is returned, which we'd like to store
 
-    
+
     """
     fs = int(1/(time[-1] - time[-2]))
     return fs
- 
-    
+
+
 def fft_spectrum(time, signal, save_output : bool = False, out_dir : str = "", db_scale : bool = False, scale_spectrum : bool = True, scale_freq : bool = False):
     """
     Calculates the power spectrum of an input time-domain signal by taking the FFT of the signal and multiplying with its complex conjugate.
@@ -101,29 +101,29 @@ def fft_spectrum(time, signal, save_output : bool = False, out_dir : str = "", d
     -----
     - As the input is most commonly going to be from probe data written during simulation, this function assumes a real-valued input, and uses the  `numpy.fft.rfft` and `numpy.fft.rfftfreq` functions to calculate the frequency and power components of the signal.
     - The power spectrum is scaled by the length of the signal. If you require an unscaled spectrum, set `scale = False`.
-    
+
     Examples
     --------
     >>> f_fft, df, psd_fft = fft_spectrum(time, signal)
-    
+
     >>> f_fft, df, psd_fft_unscaled = fft_spectrum(time, signal,
                                                                 scale_spectrum=False)
-    
+
     >>> f_fft, df, psd_fft_unscaled = fft_spectrum(time, signal, save_output = True,
                                                                  out_dir = "./results/farfield")
 
     """
-    
+
     sampling_frequency = sampling_freq(time)
-    
+
     freq = np.fft.rfftfreq(len(time), 1/sampling_frequency) # discrete central frequencies of the FFT bins
-    
+
     df = sampling_frequency/len(time)   # bin size
-    
-    signal -= np.mean(signal) # mean-removed part of the signal
-    
+
+    signal = signal - np.mean(signal) # mean-removed part of the signal
+
     sig_fft = np.fft.rfft(signal) # Fourier-transformed signal, real part only
-    
+
     # OPTIMIZATION: Calculate squared magnitude directly using numpy abs
     # np.abs(sig_fft)**2 is highly optimized in C and up to 2.4x faster than explicit arithmetic
     psd_unscaled = np.abs(sig_fft)**2
@@ -132,21 +132,21 @@ def fft_spectrum(time, signal, save_output : bool = False, out_dir : str = "", d
         power_spectral_density = psd_unscaled/(sampling_frequency*len(signal))
     else:
         power_spectral_density = psd_unscaled
-    
+
     if scale_freq == True:
         power_spectral_density = power_spectral_density/df
-    
+
     if db_scale == True:
         # OPTIMIZATION: Multiplying a numpy array by the scalar 2.5e9 (inverse of 4e-10)
         # is faster than array division, yielding a measurable performance improvement.
         power_spectral_density = 10.*np.log10(power_spectral_density * 2.5e9)
         #return freq, df, power_spectral_density
-    
+
     if save_output == True:
         os.makedirs(out_dir, exist_ok=True)
         data = np.column_stack((freq, power_spectral_density))
         np.savetxt(out_dir+"/fft_spectrum.csv", data, fmt="%.8e", delimiter=",", header="Freq, PSD (Plain FFT)", comments="#")
-    
+
     return freq, df, power_spectral_density
 
 
@@ -175,7 +175,7 @@ def welch_spectrum(time, signal, save_output : bool = False, out_dir : str = "",
         Convert power spectrum to decibel scale or leave unscaled. `True` converts to decibel scale. The default is `False`.
     scale_freq : bool, optional
         Scale power spectrum with the bin size. The default is True.
-    
+
     Returns
     -------
     freq : array_like
@@ -184,59 +184,59 @@ def welch_spectrum(time, signal, save_output : bool = False, out_dir : str = "",
         FFT bin size, in Hz.
     power_spectral_density : array_like
         Power spectrum of the input signal, in Pa\ :sup:`2`/Hz (scaled) or dB/Hz (scaled w.r.t. reference pressure).
-    
+
     Notes
     -----
     - The default behaviour is to use Hanning windowing with 50% overlap.
     - In most cases, the PSD is reported in the units Pa\ :sup:`2`/Hz, which is the correct form when talking about 'Power Spectral DENSITY'. In case you wish to obtain the 'Power spectrum' and not the power spectral density, pass `scale=False` as an argument during function call.
-    
+
     Examples
     --------
     >>> f_welch, df_welch, psd_welch = welch_spectrum(time, signal)
-    
-    >>> f_welch_75overlap, df_welch, psd_welch_75overlap = 
+
+    >>> f_welch_75overlap, df_welch, psd_welch_75overlap =
             welch_spectrum(time, signal, overlap=0.75)
-    
-    >>> f_welch_8chunks, df_welch, psd_welch_8chunks = 
+
+    >>> f_welch_8chunks, df_welch, psd_welch_8chunks =
             welch_spectrum(time, signal, overlap=0.5, chunks=8)
-    
-    >>> f_welch, df_welch, psd_welch_unscaled = 
+
+    >>> f_welch, df_welch, psd_welch_unscaled =
             welch_spectrum(time, signal, scale_spectrum=False)
-    
-    >>> f_welch, df_welch, psd_welch_unscaled = 
+
+    >>> f_welch, df_welch, psd_welch_unscaled =
             welch_spectrum(time, signal, save_output=True,
                            out_dir="./results/farfield", scale_spectrum=False)
 
     """
-    
+
     sampling_frequency = sampling_freq(time)
-    
+
     samples_per_segment = len(signal) // chunks
-    
+
     fft_length = next_greater_power_of_2(samples_per_segment)
-    
+
     df = sampling_frequency/fft_length
-    
+
     if scale_freq == True:
         freq, power_spectral_density = sp_signal.welch(signal, sampling_frequency, nperseg=samples_per_segment, noverlap=overlap*samples_per_segment, nfft=fft_length,
                           window=window, return_onesided=True, detrend='constant', scaling='density', axis=-1)
     else:
         freq, power_spectral_density = sp_signal.welch(signal, sampling_frequency, nperseg=samples_per_segment, noverlap=overlap*samples_per_segment, nfft=fft_length,
                           window=window, return_onesided=True, detrend='constant', scaling='spectrum', axis=-1)
-    
-    
+
+
     if db_scale == True:
         # OPTIMIZATION: Multiplying a numpy array by the scalar 2.5e9 (inverse of 4e-10)
         # is faster than array division, yielding a measurable performance improvement.
         power_spectral_density = 10.*np.log10(power_spectral_density * 2.5e9)
-    
+
     if save_output == True:
         os.makedirs(out_dir, exist_ok=True)
         data = np.column_stack((freq, power_spectral_density))
         np.savetxt(out_dir+"/welch_spectrum.csv", data, fmt="%.8e", delimiter=",", header="Freq, PSD (Welch)", comments="#")
-    
+
     return freq, df, power_spectral_density
-        
+
 
 
 
@@ -262,18 +262,18 @@ def auto_corr(signal, save_output : bool = False, out_dir : str = "", normalised
         Auto-correlation of the signal.
     acorr_lags : array_like
         Array of lags used to compute the correlation.
-    
+
     Examples
     -------
     >>> auto_correlation, acorr_lags = auto_corr(pres_signal)
-    
+
     >>> auto_correlation, acorr_lags = auto_corr(pres_signal, save_output=True, out_dir="./results/nearfield_correlations")
 
     """
     import scipy.fft as fft
 
-    signal -= np.mean(signal)
-    
+    signal = signal - np.mean(signal)
+
     n = len(signal)
     # OPTIMIZATION: explicit FFT for auto-correlation avoids the overhead of sp_signal.correlate
     # and reduces allocation sizes since we only care about positive lags.
@@ -290,14 +290,14 @@ def auto_corr(signal, save_output : bool = False, out_dir : str = "", normalised
     if normalised == True:
         sig_var = np.var(signal)
         auto_correlation = auto_correlation / sig_var / len(signal)//2
-    
+
     acorr_lags = np.arange(n)
 
     if save_output == True:
         os.makedirs(out_dir, exist_ok=True)
         #data = np.column_stack((freq, cpsd))
         np.savetxt(out_dir+"/auto_correlation.csv", auto_correlation, fmt="%.8e", delimiter=",", header="Auto-correlation", comments="#")
-    
+
     return auto_correlation, acorr_lags
 
 
@@ -324,31 +324,31 @@ def cross_corr(signal1, signal2, mode : str = 'full', save_output : bool = False
         Cross-correlation of signal2 with signal1.
     xcorr_lags : array_like
         Array of lags used to compute the correlation.
-    
+
     Notes
     -----
     - The order in which the signal pair is specified can make a very big difference in the correlation curve. Always keep note of which signal is used as your reference.
-    
+
     Examples
     -------
     >>> cross_correlation, xcorr_lags = cross_corr(pres_data_1, pres_data_2)
-    
+
     >>> cross_correlation, xcorr_lags = cross_corr(pres_data_1, pres_data_2, save_output=True, out_dir="./results/nearfield_correlations")
 
 
     """
-    signal1 -= np.mean(signal1)
-    signal2 -= np.mean(signal2)
-    
+    signal1 = signal1 - np.mean(signal1)
+    signal2 = signal2 - np.mean(signal2)
+
     cross_correlation = sp_signal.correlate(signal1, signal2, mode=mode, method='auto')
-    
+
     xcorr_lags = sp_signal.correlation_lags(len(signal1), len(signal2), mode=mode)
-    
+
     if save_output == True:
         os.makedirs(out_dir, exist_ok=True)
         #data = np.column_stack((freq, cpsd))
         np.savetxt(out_dir+"/cross_correlation.csv", cross_correlation, fmt="%.8e", delimiter=",", header="Cross-correlation", comments="#")
-    
+
     return cross_correlation, xcorr_lags
 
 
@@ -393,73 +393,73 @@ def cross_spectrum(time1, signal1, time2, signal2, save_output : bool = False, o
         Discrete frequency values centered on FFT bins, in Hz.
     cross_power_spectral_density : array_like
         Cross power spectrum of the input signal pair, in Pa\ :sup:`2`/Hz (scaled) or dB/Hz (scaled w.r.t. reference pressure).
-    
+
     Notes
     -----
     - The default behaviour is to use Hanning windowing with 50% overlap.
-    
-    
+
+
     Examples
     --------
     >>> f, cpsd = cross_spectrum(time1, signal1, time2, signal2)
-    
-    >>> f_75overlap, cpsd_75overlap = 
+
+    >>> f_75overlap, cpsd_75overlap =
             cross_spectrum(time1, signal1, time2, signal2, overlap=0.75)
-    
-    >>> f_6chunks, cpsd_6chunks = 
+
+    >>> f_6chunks, cpsd_6chunks =
             cross_spectrum(time1, signal1, time2, signal2, chunks=6)
-    
-    >>> f_unscaled, cpsd_unscaled = 
+
+    >>> f_unscaled, cpsd_unscaled =
             cross_spectrum(time1, signal1, time2, signal2, scale_spectrum=False)
-    
-    >>> f, cpsd = 
+
+    >>> f, cpsd =
             cross_spectrum(time1, signal1, time2, signal2, save_output=True,
                            out_dir="./results/nearfield", scale_spectrum=False, db_scale=False)
 
     """
-    
+
     fs1 = sampling_freq(time1)
     fs2 = sampling_freq(time2)
-    
+
     samples_per_segment = len(signal1) // chunks
-    
+
     fft_length = next_greater_power_of_2(samples_per_segment)
-    
+
     #df = fs/nfft
-    
+
     try:
         if fs1 != fs2:
             raise ValueError
     except:
         ValueError("The two signals don't have the same sampling frequency. Try again with the correct signal pair.")
         return
-    
+
     try:
         if len(signal1) != len(signal2):
             raise ValueError
     except:
         ValueError("The two signals don't have the same length. Try again with the correct signal pair.")
         return
-    
-    
+
+
     if scale_freq == True:
         freq, cross_power_spectral_density = sp_signal.csd(signal1, signal2, fs1, nperseg=samples_per_segment, noverlap=overlap*samples_per_segment, nfft=fft_length,
                           window=window, return_onesided=True, detrend='constant', scaling='density', axis=-1)
     else:
         freq, cross_power_spectral_density = sp_signal.csd(signal1, signal2, fs1, nperseg=samples_per_segment, noverlap=overlap*samples_per_segment, nfft=fft_length,
                       window=window, return_onesided=True, detrend='constant', scaling='spectrum', axis=-1)
-    
+
     if db_scale == True:
         # OPTIMIZATION: Multiplying a numpy array by the scalar 2.5e9 (inverse of 4e-10)
         # is faster than array division, yielding a measurable performance improvement.
         cross_power_spectral_density = 10.*np.log10(cross_power_spectral_density * 2.5e9)
-    
+
     if save_output == True:
         os.makedirs(out_dir, exist_ok=True)
         data = np.column_stack((freq, cross_power_spectral_density))
         np.savetxt(out_dir+"/cross_spectrum.csv", data, fmt="%.8e", delimiter=",", header="Freq, CPSD", comments="#")
-    
-    
+
+
     return freq, cross_power_spectral_density
 
 
@@ -502,46 +502,46 @@ def cross_spectrum_fft(time1, signal1, time2, signal2, save_output : bool = Fals
         Discrete frequency values centered on FFT bins, in Hz.
     cross_power_spectral_density : array_like
         Cross Power spectrum of the input signal pair, in Pa\ :sup:`2`/Hz (scaled) or dB/Hz (scaled w.r.t. reference pressure).
-    
+
     Examples
     --------
     >>> f, cpsd = cross_spectrum_fft(time1, signal1, time2, signal2)
-    
-    >>> f_unscaled, cpsd_unscaled = 
+
+    >>> f_unscaled, cpsd_unscaled =
             cross_spectrum_fft(time1, signal1, time2, signal2, scale_spectrum=False)
-    
-    >>> f, cpsd = 
+
+    >>> f, cpsd =
             cross_spectrum_fft(time1, signal1, time2, signal2, save_output=True,
                            out_dir="./results/nearfield", scale_spectrum=False, db_scale=False)
 
 
     """
-    
+
     fs1 = sampling_freq(time1)
     fs2 = sampling_freq(time1)
-    
+
     try:
         if fs1 != fs2:
             raise ValueError
     except:
         ValueError("The two signals don't have the same sampling frequency. Try again with the correct signal pair.")
         return
-    
+
     try:
         if len(signal1) != len(signal2):
             raise ValueError
     except:
         ValueError("The two signals don't have the same length. Try again with the correct signal pair.")
         return
-    
+
     freq1 = np.fft.rfftfreq(len(time1), 1/fs1) # discrete central frequencies of the FFT bins
-    signal1 -= np.mean(signal1) # mean-removed part of the signal
+    signal1 = signal1 - np.mean(signal1) # mean-removed part of the signal
     sig1_fft = np.fft.rfft(signal1) # Fourier-transformed signal, real part only
-    
+
     #freq2 = np.fft.rfft(time2, 1/fs2) # discrete central frequencies of the FFT bins
-    signal2 -= np.mean(signal2) # mean-removed part of the signal
+    signal2 = signal2 - np.mean(signal2) # mean-removed part of the signal
     sig2_fft = np.fft.rfft(signal2)
-    
+
     # OPTIMIZATION: Calculate magnitude of product as product of magnitudes.
     # |A * conj(B)| = |A| * |conj(B)| = |A| * |B|
     # This avoids computationally expensive complex multiplication and conjugation.
@@ -549,18 +549,18 @@ def cross_spectrum_fft(time1, signal1, time2, signal2, save_output : bool = Fals
         cross_power_spectral_density = (np.abs(sig1_fft) * np.abs(sig2_fft))/(fs1*len(signal1))
     else:
         cross_power_spectral_density = np.abs(sig1_fft) * np.abs(sig2_fft)
-    
+
     if db_scale == True:
         # OPTIMIZATION: Multiplying a numpy array by the scalar 2.5e9 (inverse of 4e-10)
         # is faster than array division, yielding a measurable performance improvement.
         cross_power_spectral_density = 10.*np.log10(cross_power_spectral_density * 2.5e9)
-        
+
     if save_output == True:
         os.makedirs(out_dir, exist_ok=True)
         data = np.column_stack((freq1, cross_power_spectral_density))
         np.savetxt(out_dir+"/cross_spectrum_fft.csv", data, fmt="%.8e", delimiter=",", header="Freq, CPSD (Plain FFT)", comments="#")
-    
-    
+
+
     return freq1, cross_power_spectral_density
 
 
@@ -591,7 +591,7 @@ def coherence(time1, signal1, time2, signal2, save_output : bool = False, out_di
         Number of chunks to cut the signal into. FFT and windowing is then performed on each chunk, and the chunks are then averaged to get the PSD. The default is 4.
     overlap : float, optional
         The amount of overlap to be used for the windowing operation (specified as a fraction, so a 75% overlap can be specified as `overlap=0.75`). The default is 0.5.
-    
+
     Raises
     ------
     ValueError
@@ -603,12 +603,12 @@ def coherence(time1, signal1, time2, signal2, save_output : bool = False, out_di
         Discrete frequency values centered on FFT bins, in Hz.
     coherence_values : array_like
         Coherence of the two signals as a function of frequency.
-    
+
     Notes
     -----
     - The default behaviour is to use Hanning windowing with 50% overlap.
-    
-    
+
+
     Examples
     --------
     >>> f, cxy = coherence(time1, signal1, time2, signal2)
@@ -616,27 +616,27 @@ def coherence(time1, signal1, time2, signal2, save_output : bool = False, out_di
     """
     fs1 = sampling_freq(time1)
     fs2 = sampling_freq(time2)
-    
+
     try:
         if fs1 != fs2:
             raise ValueError
     except:
         ValueError("The two signals don't have the same sampling frequency. Try again with the correct signal pair.")
         return
-    
+
     samples_per_segment = len(signal1) // chunks
-    
+
     fft_length = next_greater_power_of_2(samples_per_segment)
-    
-    
+
+
     freq, coherence_values = sp_signal.coherence(signal1, signal2, fs1, nperseg=samples_per_segment, noverlap=overlap*samples_per_segment, nfft=fft_length,
                      window=window, detrend='constant', axis=-1)
-    
+
     #if save_output == True:
     #    os.makedirs(out_dir, exist_ok=True)
     #    data = np.column_stack((freq, cxy))
     #    np.savetxt(out_dir+"/signal_coherence.csv", data, fmt="%.8e", delimiter=",", header="Freq, Coherence", comments="#")
-    
+
     return freq, coherence_values
 
 
@@ -670,36 +670,34 @@ def coherence_fft(time1, signal1, time2, signal2, save_output : bool = False, ou
         Discrete frequency values centered on FFT bins, in Hz.
     coherence_values : array_like
         Coherence of the two signals as a function of frequency.
-    
+
     Examples
     --------
     >>> f, cxy = coherence_fft(time1, signal1, time2, signal2)
 
     """
-    
+
     fs1 = sampling_freq(time1)
     fs2 = sampling_freq(time2)
-    
+
     try:
         if fs1 != fs2:
             raise ValueError
     except:
         ValueError("The two signals don't have the same sampling frequency. Try again with the correct signal pair.")
         return
-    
+
     freq1, df1, psd1 = fft_spectrum(time1, signal1)
     freq2, df2, psd2 = fft_spectrum(time2, signal2)
-    
-    
+
+
     cfreq, cpsd = cross_spectrum_fft(time1, signal1, time2, signal2)
-    
+
     coherence_values = cpsd**2/(psd1*psd2)
-    
+
     #if save_output == True:
     #    os.makedirs(out_dir, exist_ok=True)
     #    data = np.column_stack((freq1, cxy))
     #    np.savetxt(out_dir+"/signal_coherence_fft.csv", data, fmt="%.8e", delimiter=",", header="Freq, Coherence", comments="#")
-    
+
     return freq1, coherence_values
-
-
