@@ -313,7 +313,8 @@ with tab_spectral:
                         data=f,
                         file_name="sample_signal_data.zip",
                         mime="application/zip",
-                        key="download_sample_spectral"
+                        key="download_sample_spectral",
+                        help="Download sample data containing `signal.csv` to test the spectral analysis."
                     )
 
         if uploaded_sig:
@@ -322,7 +323,10 @@ with tab_spectral:
                 uploaded_sig = None
             else:
                 df = pd.read_csv(uploaded_sig)
-                st.dataframe(df.head())
+
+                with st.expander("Preview Uploaded Data"):
+                    st.dataframe(df.head(), use_container_width=True)
+
                 st.caption(f"✅ Loaded **{len(df)}** rows, **{len(df.columns)}** columns.")
 
                 # Smart default selection
