@@ -339,7 +339,11 @@ with tab_spectral:
                 # Recalculate index for the filtered list
                 sig_idx = get_column_index(available_cols, sig_candidates)
 
-                sig_col = st.selectbox("Select Signal Column", available_cols, index=sig_idx, help="Select the column containing the measurement data to analyze (e.g., pressure, velocity).")
+                if available_cols:
+                    sig_col = st.selectbox("Select Signal Column", available_cols, index=sig_idx, help="Select the column containing the measurement data to analyze (e.g., pressure, velocity).")
+                else:
+                    st.warning("No signal columns available (the file only has 1 column). Please upload a file with at least two columns.")
+                    sig_col = None
 
                 method = st.selectbox("Method", ["FFT", "Welch"], help="Choose 'FFT' for standard spectrum or 'Welch' for smoothed periodogram.")
 
@@ -352,7 +356,7 @@ with tab_spectral:
                         overlap = st.number_input("Overlap (Fraction)", value=0.5, min_value=0.0, max_value=0.99, help="Fraction of overlap between segments (typically 0.5 or 50%).")
 
     with col2:
-        if uploaded_sig:
+        if uploaded_sig and sig_col is not None:
              try:
                 time_vals = df[time_col].values
                 sig = df[sig_col].values
@@ -409,6 +413,8 @@ with tab_spectral:
 
              except Exception as e:
                  st.error(f"Error: {e}")
+        elif uploaded_sig and sig_col is None:
+             st.info("⚠️ Please upload a CSV file with at least two columns to proceed with spectral analysis.")
         else:
              st.info("👋 Upload a CSV file on the left to get started with spectral analysis.")
              st.markdown("""
