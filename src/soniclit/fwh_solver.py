@@ -545,11 +545,14 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
             # Same logic as original
             diff = xo - geom_y
             Mr0 = np.dot(diff, mach_number)
-            # Optimized: explicit calculation is ~3.8x faster than np.linalg.norm(..., axis=1)
-            R0 = np.sqrt(diff[:,0]**2 + diff[:,1]**2 + diff[:,2]**2)
+            # Optimized: avoid np.sqrt for R0 as we only need R0**2
+            d0 = diff[:,0]
+            d1 = diff[:,1]
+            d2 = diff[:,2]
+            R0_sq = d0*d0 + d1*d1 + d2*d2
 
             # Calculate R - effective acoustic distance
-            Rstar = np.sqrt(Mr0**2+(beta*R0)**2)
+            Rstar = np.sqrt(Mr0*Mr0 + beta**2 * R0_sq)
             # Optimized: multiply by precomputed inverse square is faster than division
             R = (-Mr0+Rstar) * inv_beta_sq
 
@@ -891,11 +894,14 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
         # Calculate time independent quantities (using LOCAL geometry)
         diff = xo - geom_y_local
         Mr0 = np.dot(diff, mach_number)
-        # Optimized: explicit calculation is ~3.8x faster than np.linalg.norm(..., axis=1)
-        R0 = np.sqrt(diff[:,0]**2 + diff[:,1]**2 + diff[:,2]**2)
+        # Optimized: avoid np.sqrt for R0 as we only need R0**2
+        d0 = diff[:,0]
+        d1 = diff[:,1]
+        d2 = diff[:,2]
+        R0_sq = d0*d0 + d1*d1 + d2*d2
 
         # Calculate R - effective acoustic distance
-        Rstar = np.sqrt(Mr0**2+(beta*R0)**2)
+        Rstar = np.sqrt(Mr0*Mr0 + beta**2 * R0_sq)
         # Optimized: multiply by precomputed inverse square is faster than division
         R = (-Mr0+Rstar) * inv_beta_sq
 
