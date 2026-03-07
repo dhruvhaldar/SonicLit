@@ -59,3 +59,7 @@
 ## 2026-03-03 - Contextual Help for Technical Metrics
 **Learning:** While input tooltips help users configure settings, derived technical metrics (like "Nyquist Freq" or "Freq Resolution") often leave users guessing about their exact implications on the final results. Adding explicit `help` text to `st.metric` widgets bridges the gap between raw numbers and domain understanding.
 **Action:** Always populate the `help` parameter for `st.metric` displays in technical dashboards to explain both the definition and the practical impact of the metric.
+
+## 2026-03-07 - Conditional Empty States for Dynamic Views
+**Learning:** When a UI component relies on dynamic data (like available columns from a CSV file), failing to handle invalid conditions (e.g., uploading a 1-column CSV when 2 are needed) can result in completely blank UI areas without feedback.
+**Action:** Implement robust conditional checks (`elif`) to render explicit empty states (`st.info` or `st.warning`) for partially invalid data, preventing "dead" UI zones.

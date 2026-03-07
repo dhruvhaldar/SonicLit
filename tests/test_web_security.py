@@ -36,10 +36,17 @@ class TestWebSecurityDoS(unittest.TestCase):
         huge_payload = "[[" + "0,"*3000 + "0]]"
 
         start_time = time.time()
-        at = obs_input.set_value(huge_payload).run(timeout=5)
+        obs_input.set_value(huge_payload).run(timeout=5)
         duration = time.time() - start_time
 
         self.assertLess(duration, 2.0, "Execution took too long, likely parsed the input.")
+
+        # Re-fetch widget to get latest errors
+        obs_input = None
+        for widget in at.text_area:
+            if "Coordinates List" in widget.label:
+                obs_input = widget
+                break
 
         # Verify error message
         found_length_error = False
