@@ -781,15 +781,10 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
                 # Optimization: Avoid allocating j_adv array and performing redundant min/max scans
                 # Original: j_adv = j + od['j_star'] + 1
                 j_star = od['j_star']
-                t_start, t_end = od['t_range']
 
-                # Optimized j_cond: j_star >= t_start - j - 1 AND j_star < t_end - j - 1
-                min_val = t_start - j - 1
-                max_val = t_end - j - 1
-                j_cond = (j_star >= min_val) * (j_star < max_val)
-
-                p *= j_cond
-
+                # Optimization: Accumulating all data without boundary masks (like j_cond)
+                # and simply slicing at the end is significantly faster by avoiding
+                # repeated allocation of large boolean arrays.
                 p_act = np.bincount(j_star, weights=p, minlength=od['len_p_act'])
 
                 # Optimization: Direct indexing. min(j_adv) = j + 1 + min(j_star) = j + 1
@@ -1177,15 +1172,10 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
             # Optimization: Avoid allocating j_adv array and performing redundant min/max scans
             # Original: j_adv = j + od['j_star'] + 1
             j_star = od['j_star']
-            t_start, t_end = od['t_range']
 
-            # Optimized j_cond: j_star >= t_start - j - 1 AND j_star < t_end - j - 1
-            min_val = t_start - j - 1
-            max_val = t_end - j - 1
-            j_cond = (j_star >= min_val) * (j_star < max_val)
-
-            p *= j_cond
-
+            # Optimization: Accumulating all data without boundary masks (like j_cond)
+            # and simply slicing at the end is significantly faster by avoiding
+            # repeated allocation of large boolean arrays.
             p_act = np.bincount(j_star, weights=p, minlength=od['len_p_act'])
 
             # Accumulate locally
