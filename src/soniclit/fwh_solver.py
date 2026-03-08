@@ -578,7 +578,8 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
             len_p_act = np.max(j_star) + 1
 
             one_minus_Mr = 1.0 - Mr
-            one_minus_Mr_sq = one_minus_Mr**2
+            # Optimization: Explicit multiplication is faster than the power operator for small integer powers
+            one_minus_Mr_sq = one_minus_Mr * one_minus_Mr
 
             sp_c0, sp_c1, sp_c2, sp_c3 = _precompute_spline_coeffs(interpolation_weight)
 
@@ -937,7 +938,8 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
         len_p_act = max_j_star_global + 1
 
         one_minus_Mr = 1.0 - Mr
-        one_minus_Mr_sq = one_minus_Mr**2
+        # Optimization: Explicit multiplication is faster than the power operator for small integer powers
+        one_minus_Mr_sq = one_minus_Mr * one_minus_Mr
 
         sp_c0, sp_c1, sp_c2, sp_c3 = _precompute_spline_coeffs(interpolation_weight)
 
