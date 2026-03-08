@@ -63,3 +63,11 @@
 ## 2026-03-07 - Conditional Empty States for Dynamic Views
 **Learning:** When a UI component relies on dynamic data (like available columns from a CSV file), failing to handle invalid conditions (e.g., uploading a 1-column CSV when 2 are needed) can result in completely blank UI areas without feedback.
 **Action:** Implement robust conditional checks (`elif`) to render explicit empty states (`st.info` or `st.warning`) for partially invalid data, preventing "dead" UI zones.
+
+## 2026-03-08 - Use Sliders for Fractional Parameters
+**Learning:** Number inputs are un-intuitive for fractional bounded ranges (like 0.0 - 0.99 for "Overlap"). Replacing them with `st.slider` provides better tactile feedback and encourages users to explore parameter impacts.
+**Action:** Use `st.slider` with appropriate `step` values for any inputs constrained between 0 and 1.
+
+## 2026-03-08 - Contextual Download Filenames
+**Learning:** Statically naming exported CSVs (e.g. `spectrum_analysis.csv`) creates friction when users perform multiple analyses in a single session.
+**Action:** Always inject dynamic parameters into export filenames (e.g. `spectrum_{method}_{signal}.csv`) to provide immediate context and prevent file overwrites on the user's local machine.
