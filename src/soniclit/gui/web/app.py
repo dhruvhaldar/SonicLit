@@ -353,7 +353,7 @@ with tab_spectral:
                         chunks = st.number_input("Chunks", value=4, step=1, min_value=1, max_value=1000, help="Number of segments to split the signal into (higher = smoother but lower frequency resolution).")
                         chunks = min(chunks, 1000)
                     with col_w2:
-                        overlap = st.number_input("Overlap (Fraction)", value=0.5, min_value=0.0, max_value=0.99, help="Fraction of overlap between segments (typically 0.5 or 50%).")
+                        overlap = st.slider("Overlap (Fraction)", min_value=0.0, max_value=0.99, value=0.5, step=0.05, help="Fraction of overlap between segments (typically 0.5 or 50%).")
 
     with col2:
         if uploaded_sig and sig_col is not None:
@@ -406,7 +406,7 @@ with tab_spectral:
                     st.download_button(
                         label="Download Spectrum CSV",
                         data=csv_data,
-                        file_name="spectrum_analysis.csv",
+                        file_name=f"spectrum_{method.lower()}_{sig_col}.csv",
                         mime="text/csv",
                         help="Download the calculated Power Spectral Density data."
                     )
