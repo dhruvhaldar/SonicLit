@@ -71,3 +71,7 @@
 ## 2026-03-08 - Contextual Download Filenames
 **Learning:** Statically naming exported CSVs (e.g. `spectrum_analysis.csv`) creates friction when users perform multiple analyses in a single session.
 **Action:** Always inject dynamic parameters into export filenames (e.g. `spectrum_{method}_{signal}.csv`) to provide immediate context and prevent file overwrites on the user's local machine.
+
+## 2026-03-10 - Validating Empty States in Bulk Inputs
+**Learning:** For bulk inputs (like coordinate lists) parsed dynamically, failing to check for an empty list state can lead to meaningless UI feedback (e.g., "Ready for 0 observers") and allow users to execute expensive tasks that do nothing.
+**Action:** Always validate that the length of parsed list inputs is greater than zero before marking them as valid and enabling downstream actions.
