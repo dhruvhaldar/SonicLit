@@ -9,3 +9,7 @@
 ## 2025-02-28 - Avoid Pre-Calculated Static Exponentiations in Outer Loops
 **Learning:** Computing powers for arrays, even simple squares (e.g. `arr**2`), involves allocating memory and making multiple computational passes. Computing them inside a loop when the value is constant outside the loop is a redundant operation.
 **Action:** In time-stepping and spatial loops such as the FWH observer loop, precomputing scalar squares outside the loop (like `beta_sq = beta * beta` instead of `beta**2` for each observer and time step) shaves off critical ms over multiple iterations.
+
+## 2025-02-28 - Math Simplification for Vector Field Arrays
+**Learning:** In numpy calculations applied over massive meshes ($N > 1,000,000$), allocating intermediate $N \times 3$ vector arrays for calculations like computing distances and dot products is expensive. Expanding the dot products mathematically can remove the memory allocation completely and yield significant speedups (over 2x), but it requires care because variables like `d0`, `d1`, `d2` might need to be explicitly managed.
+**Action:** Prefer expanding geometric vector relations (e.g., $(L \cdot r)$ using elements of components $d_0, d_1, d_2$) mathematically before array allocations.
