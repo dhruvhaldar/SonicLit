@@ -120,6 +120,9 @@ with tab_fwh:
                 if not isinstance(val, (list, tuple)):
                     st.error("Observer locations must be a list of coordinates (e.g. [[0,0,10]]).")
                     obs_valid = False
+                elif len(val) == 0:
+                    st.error("Please provide at least one observer location.")
+                    obs_valid = False
                 elif len(val) > 100:
                     st.error("Too many observer locations (max 100).")
                     obs_valid = False
@@ -281,7 +284,7 @@ with tab_fwh:
                             st.download_button(
                                 label="Download Results (ZIP)",
                                 data=fp,
-                                file_name="fwh_results.zip",
+                                file_name=f"fwh_results_{prefix}.zip",
                                 mime="application/zip",
                                 help="Download a ZIP archive containing the computed acoustic data and preview images."
                             )
