@@ -558,14 +558,15 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
             # Optimized: multiply by precomputed inverse square is faster than division
             R = (-Mr0+Rstar) * inv_beta_sq
 
-            # Radiation vector
-            r_vec = diff / R[:, np.newaxis] - mach_number
-            Mr = np.dot(r_vec, -mach_number)
+            # Radiation vector (mathematically optimized to avoid (N,3) allocation)
+            inv_R = 1.0 / R
+            Mr = M2 - Mr0 * inv_R
 
             # Optimization: Precompute n . r for impermeable surface optimization
             geom_n_dot_r = None
             if not is_permeable:
-                geom_n_dot_r = geom_n[:, 0]*r_vec[:, 0] + geom_n[:, 1]*r_vec[:, 1] + geom_n[:, 2]*r_vec[:, 2]
+                # geom_n_dot_r = n . (diff/R - M) = (n . diff)/R - n.M
+                geom_n_dot_r = (geom_n[:, 0]*d0 + geom_n[:, 1]*d1 + geom_n[:, 2]*d2) * inv_R - geom_n_dot_mach
 
             tau = np.array(R/speed_of_sound) #travelling time of sound from all sources
             t_o = source_times+min(tau) #observer times
@@ -666,7 +667,10 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
                  combined_weights['Q'] = (W_Q_0, W_Q_1, W_Q_2, W_Q_3)
 
             obs_data.append({
-                'r_vec': r_vec,
+                'inv_R': inv_R,
+                'd0': d0,
+                'd1': d1,
+                'd2': d2,
                 'geom_n_dot_r': geom_n_dot_r,
                 'j_star': j_star,
                 't_range': t_range,
@@ -693,11 +697,13 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
         # Optimization: Pre-calculate Lr for initial time steps for each observer
         for idx in range(n_obs):
             od = obs_data[idx]
-            r_vec = od['r_vec']
             if is_permeable:
-                od['Lr0'] = src_buf[0]['L1']*r_vec[:,0] + src_buf[0]['L2']*r_vec[:,1] + src_buf[0]['L3']*r_vec[:,2]
-                od['Lr1'] = src_buf[1]['L1']*r_vec[:,0] + src_buf[1]['L2']*r_vec[:,1] + src_buf[1]['L3']*r_vec[:,2]
-                od['Lr2'] = src_buf[2]['L1']*r_vec[:,0] + src_buf[2]['L2']*r_vec[:,1] + src_buf[2]['L3']*r_vec[:,2]
+                inv_R = od['inv_R']
+                d0, d1, d2 = od['d0'], od['d1'], od['d2']
+                # Lr = L . r_vec = (L1*d0 + L2*d1 + L3*d2)/R + Lm
+                od['Lr0'] = (src_buf[0]['L1']*d0 + src_buf[0]['L2']*d1 + src_buf[0]['L3']*d2) * inv_R + src_buf[0]['Lm']
+                od['Lr1'] = (src_buf[1]['L1']*d0 + src_buf[1]['L2']*d1 + src_buf[1]['L3']*d2) * inv_R + src_buf[1]['Lm']
+                od['Lr2'] = (src_buf[2]['L1']*d0 + src_buf[2]['L2']*d1 + src_buf[2]['L3']*d2) * inv_R + src_buf[2]['Lm']
             else:
                 # Optimized Lr calculation for impermeable surfaces
                 n_dot_r = od['geom_n_dot_r']
@@ -734,7 +740,6 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
             # --- Loop Observers ---
             for idx in range(n_obs):
                 od = obs_data[idx]
-                r_vec = od['r_vec']
 
                 weights = od['combined_weights']
                 pq = None
@@ -745,7 +750,8 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
                     Lr0 = od['Lr0']
                     Lr1 = od['Lr1']
                     Lr2 = od['Lr2']
-                    Lr3 = src_buf[3]['L1']*r_vec[:,0] + src_buf[3]['L2']*r_vec[:,1] + src_buf[3]['L3']*r_vec[:,2]
+                    # Lr = L . r_vec = (L1*d0 + L2*d1 + L3*d2)/R + Lm
+                    Lr3 = (src_buf[3]['L1']*od['d0'] + src_buf[3]['L2']*od['d1'] + src_buf[3]['L3']*od['d2']) * od['inv_R'] + src_buf[3]['Lm']
 
                     # Update cache for next iteration (shift)
                     od['Lr0'] = Lr1
@@ -905,14 +911,15 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
         # Optimized: multiply by precomputed inverse square is faster than division
         R = (-Mr0+Rstar) * inv_beta_sq
 
-        # Radiation vector
-        r_vec = diff / R[:, np.newaxis] - mach_number
-        Mr = np.dot(r_vec, -mach_number)
+        # Radiation vector (mathematically optimized to avoid (N,3) allocation)
+        inv_R = 1.0 / R
+        Mr = M2 - Mr0 * inv_R
 
         # Optimization: Precompute n . r for impermeable surface optimization
         geom_n_dot_r = None
         if not is_permeable:
-            geom_n_dot_r = geom_n_local[:, 0]*r_vec[:, 0] + geom_n_local[:, 1]*r_vec[:, 1] + geom_n_local[:, 2]*r_vec[:, 2]
+            # geom_n_dot_r = n . (diff/R - M) = (n . diff)/R - n.M
+            geom_n_dot_r = (geom_n_local[:, 0]*d0 + geom_n_local[:, 1]*d1 + geom_n_local[:, 2]*d2) * inv_R - geom_n_dot_mach_local
 
         tau = np.array(R/speed_of_sound) #travelling time of sound from all sources
 
@@ -1018,7 +1025,10 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
              combined_weights['Q'] = (W_Q_0, W_Q_1, W_Q_2, W_Q_3)
 
         obs_data.append({
-            'r_vec': r_vec,
+            'inv_R': inv_R,
+            'd0': d0,
+            'd1': d1,
+            'd2': d2,
             'geom_n_dot_r': geom_n_dot_r,
             'j_star': j_star,
             't_range': t_range,
@@ -1091,10 +1101,10 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
     # Pre-calculate Lr for initial time steps for each observer (LOCAL)
     for idx in range(n_obs):
         od = obs_data[idx]
-        r_vec = od['r_vec']
         for k in range(3):
             if is_permeable:
-                od[f'Lr{k}'] = src_buf[k]['L1']*r_vec[:,0] + src_buf[k]['L2']*r_vec[:,1] + src_buf[k]['L3']*r_vec[:,2]
+                # Lr = L . r_vec = (L1*d0 + L2*d1 + L3*d2)/R + Lm
+                od[f'Lr{k}'] = (src_buf[k]['L1']*od['d0'] + src_buf[k]['L2']*od['d1'] + src_buf[k]['L3']*od['d2']) * od['inv_R'] + src_buf[k]['Lm']
             else:
                 # Optimized Lr calculation for impermeable surfaces
                 od[f'Lr{k}'] = src_buf[k]['surf_p'] * od['geom_n_dot_r']
@@ -1129,7 +1139,6 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
         # --- Loop Observers ---
         for idx in range(n_obs):
             od = obs_data[idx]
-            r_vec = od['r_vec']
 
             weights = od['combined_weights']
             pq = None
@@ -1138,7 +1147,8 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
                 Lr0 = od['Lr0']
                 Lr1 = od['Lr1']
                 Lr2 = od['Lr2']
-                Lr3 = src_buf[3]['L1']*r_vec[:,0] + src_buf[3]['L2']*r_vec[:,1] + src_buf[3]['L3']*r_vec[:,2]
+                # Lr = L . r_vec = (L1*d0 + L2*d1 + L3*d2)/R + Lm
+                Lr3 = (src_buf[3]['L1']*od['d0'] + src_buf[3]['L2']*od['d1'] + src_buf[3]['L3']*od['d2']) * od['inv_R'] + src_buf[3]['Lm']
 
                 # Update cache for next iteration (shift)
                 od['Lr0'] = Lr1
