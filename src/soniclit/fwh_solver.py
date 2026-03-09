@@ -518,7 +518,9 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
         geom_dS = preprocessed_data['dS'].to_numpy()
 
         beta = np.sqrt(1-mach_number[0]**2-mach_number[1]**2-mach_number[2]**2)
-        inv_beta_sq = 1.0 / (beta * beta)
+        # Optimization: Precompute beta squared to avoid redundant power calculations in the observer loop
+        beta_sq = beta * beta
+        inv_beta_sq = 1.0 / beta_sq
 
         p_mean = pd.read_csv(surf_file+'Avg.csv', usecols = range(13,14), names = ['pressure'], dtype=np.float64, engine='pyarrow')
         p_mean = p_mean[filt].reset_index(drop=True)
@@ -552,7 +554,7 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
             R0_sq = d0*d0 + d1*d1 + d2*d2
 
             # Calculate R - effective acoustic distance
-            Rstar = np.sqrt(Mr0*Mr0 + beta**2 * R0_sq)
+            Rstar = np.sqrt(Mr0*Mr0 + beta_sq * R0_sq)
             # Optimized: multiply by precomputed inverse square is faster than division
             R = (-Mr0+Rstar) * inv_beta_sq
 
@@ -848,7 +850,9 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
     geom_dS = preprocessed_data['dS'].to_numpy()
 
     beta = np.sqrt(1-mach_number[0]**2-mach_number[1]**2-mach_number[2]**2)
-    inv_beta_sq = 1.0 / (beta * beta)
+    # Optimization: Precompute beta squared to avoid redundant power calculations in the observer loop
+    beta_sq = beta * beta
+    inv_beta_sq = 1.0 / beta_sq
 
     p_mean = pd.read_csv(surf_file+'Avg.csv', usecols = range(13,14), names = ['pressure'], dtype=np.float64, engine='pyarrow')
     p_mean = p_mean[filt].reset_index(drop=True)
@@ -897,7 +901,7 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
         R0_sq = d0*d0 + d1*d1 + d2*d2
 
         # Calculate R - effective acoustic distance
-        Rstar = np.sqrt(Mr0*Mr0 + beta**2 * R0_sq)
+        Rstar = np.sqrt(Mr0*Mr0 + beta_sq * R0_sq)
         # Optimized: multiply by precomputed inverse square is faster than division
         R = (-Mr0+Rstar) * inv_beta_sq
 
