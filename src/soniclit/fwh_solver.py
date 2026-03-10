@@ -569,13 +569,20 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
                 geom_n_dot_r = (geom_n[:, 0]*d0 + geom_n[:, 1]*d1 + geom_n[:, 2]*d2) * inv_R - geom_n_dot_mach
 
             tau = np.array(R/speed_of_sound) #travelling time of sound from all sources
-            t_o = source_times+min(tau) #observer times
-            tau_star = tau-min(tau)
+
+            # Optimization: Use np.min and np.max which are significantly faster than python built-ins for arrays
+            min_tau = np.min(tau) if len(tau) > 0 else 0
+            t_o = source_times+min_tau #observer times
+            tau_star = tau-min_tau
             interpolation_weight = (tau_star%dt)/dt
             j_star = (tau_star // dt).astype(int)
 
-            t_range = [int((max(tau)-min(tau))//dt)+2,len(t_o)-1]
-            D = (max(j_star)-1)*(max(j_star)>1)
+            max_tau = np.max(tau) if len(tau) > 0 else 0
+            t_range = [int((max_tau-min_tau)//dt)+2,len(t_o)-1]
+
+            # Optimization: Use np.max for j_star as well
+            max_j_star = np.max(j_star) if len(j_star) > 0 else 0
+            D = (max_j_star-1)*(max_j_star>1)
 
             acoustic_pressure = np.zeros(len(t_o)+D)
             len_p_act = np.max(j_star) + 1
