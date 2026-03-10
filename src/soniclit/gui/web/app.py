@@ -69,6 +69,7 @@ with tab_fwh:
         # We will ask user to upload a ZIP file containing these.
         uploaded_surf_zip = st.file_uploader("Upload Surface Data (ZIP)", type="zip", help="Zip file should contain surface CSVs (Avg.csv, 0.csv, 1.csv...)")
 
+        zip_is_valid = False
         if uploaded_surf_zip:
             if not is_file_size_valid(uploaded_surf_zip, MAX_ZIP_SIZE_MB):
                 st.error(f"File too large. Please upload a ZIP file smaller than {MAX_ZIP_SIZE_MB}MB.")
@@ -81,8 +82,9 @@ with tab_fwh:
 
                 if is_valid:
                     st.success(f"✅ Valid surface data found: {safe_msg}")
+                    zip_is_valid = True
                 else:
-                    st.warning(f"⚠️ Validation Warning: {sanitize_markdown(msg)}")
+                    st.error(f"❌ Validation Error: {sanitize_markdown(msg)} Please upload a ZIP containing surface CSVs.")
 
         if has_sample_data:
             with st.expander("Need sample data?"):
@@ -187,6 +189,8 @@ with tab_fwh:
         button_help = "Start the FWH solver"
         if uploaded_surf_zip is None:
             button_help = "Upload a surface data ZIP first to run the solver"
+        elif not zip_is_valid:
+            button_help = "Upload a valid surface data ZIP containing *Avg.csv to run"
         elif not obs_valid:
             button_help = "Fix observer coordinates format to run"
         elif not ma_valid:
@@ -195,7 +199,7 @@ with tab_fwh:
         run_btn = st.button(
             "Run FWH Solver",
             type="primary",
-            disabled=not (obs_valid and ma_valid and uploaded_surf_zip is not None),
+            disabled=not (obs_valid and ma_valid and zip_is_valid),
             help=button_help
         )
 
