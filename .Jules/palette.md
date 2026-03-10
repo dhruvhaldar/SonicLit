@@ -75,3 +75,6 @@
 ## 2026-03-10 - Validating Empty States in Bulk Inputs
 **Learning:** For bulk inputs (like coordinate lists) parsed dynamically, failing to check for an empty list state can lead to meaningless UI feedback (e.g., "Ready for 0 observers") and allow users to execute expensive tasks that do nothing.
 **Action:** Always validate that the length of parsed list inputs is greater than zero before marking them as valid and enabling downstream actions.
+## 2026-03-20 - Disabling Action Buttons on File Validation Failure
+**Learning:** Performing file validation upon upload is good, but allowing users to proceed when validation fails creates a disjointed experience where the failure happens deep in the processing logic.
+**Action:** Always track file validation state (e.g., `zip_is_valid = True/False`) and use it to disable downstream action buttons with explicit help text explaining the requirements.
