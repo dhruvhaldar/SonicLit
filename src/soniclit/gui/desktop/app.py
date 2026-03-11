@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 import os
 import ast
+import threading
 
 # Import SonicLit modules
 import soniclit.fwh_solver as fwh
@@ -177,6 +178,16 @@ class SonicLitApp:
             ma = ast.literal_eval(self.fwh_ma.get())
             perm = self.fwh_perm_var.get()
             temp = float(self.fwh_temp.get())
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+            return
+
+        self.fwh_run_btn.config(state=tk.DISABLED, text="Running...")
+        self.root.update()
+        threading.Thread(target=self._run_fwh_thread, args=(surf_file, out_file, obs_loc, dt, steps, ma, perm, temp), daemon=True).start()
+
+    def _run_fwh_thread(self, surf_file, out_file, obs_loc, dt, steps, ma, perm, temp):
+        try:
 
             t_src = [i*dt for i in range(steps)]
 
@@ -185,9 +196,9 @@ class SonicLitApp:
             if out_dir:
                 os.makedirs(out_dir, exist_ok=True)
 
-            self.log("Starting FWH Solver...")
-            self.log(f"Surface: {surf_file}")
-            self.log(f"Output: {out_file}")
+            self.root.after(0, self.log, "Starting FWH Solver...")
+            self.root.after(0, self.log, f"Surface: {surf_file}")
+            self.root.after(0, self.log, f"Output: {out_file}")
 
             # Check inputs
             if not isinstance(obs_loc, list):
@@ -196,22 +207,29 @@ class SonicLitApp:
                 raise ValueError("Mach number must be a list.")
 
             # Run
-            res = fwh.stationary_serial(surf_file, out_file, obs_loc, t_src, ma, perm, write=True, Ta=temp)
+            res = fwh.stationary_serial(surf_file, out_file, obs_loc, t_src, ma, perm, write=True, ambient_temperature=temp)
 
-            self.log("Result: " + str(res))
-            messagebox.showinfo("Success", "FWH Solver Completed!")
+            self.root.after(0, self.log, "Result: " + str(res))
+            self.root.after(0, messagebox.showinfo, "Success", "FWH Solver Completed!")
 
         except Exception as e:
-            self.log(f"Error: {e}")
-            messagebox.showerror("Error", str(e))
-            # raise e # Uncomment for debugging
+            self.root.after(0, self.log, f"Error: {e}")
+            self.root.after(0, messagebox.showerror, "Error", str(e))
+        finally:
+            self.root.after(0, lambda: self.fwh_run_btn.config(state=tk.NORMAL, text="Run FWH Solver"))
 
     def plot_spectrum(self):
+        filename = self.sa_file.get()
+        time_col = self.sa_time_col.get()
+        sig_col = self.sa_sig_col.get()
+        method = self.sa_method.get()
+
+        self.sa_plot_btn.config(state=tk.DISABLED, text="Plotting...")
+        self.root.update()
+        threading.Thread(target=self._plot_spectrum_thread, args=(filename, time_col, sig_col, method), daemon=True).start()
+
+    def _plot_spectrum_thread(self, filename, time_col, sig_col, method):
         try:
-            filename = self.sa_file.get()
-            time_col = self.sa_time_col.get()
-            sig_col = self.sa_sig_col.get()
-            method = self.sa_method.get()
 
             df = pd.read_csv(filename)
             if time_col not in df.columns or sig_col not in df.columns:
@@ -220,24 +238,26 @@ class SonicLitApp:
             time = df[time_col].values
             sig = df[sig_col].values
 
-            self.ax.clear()
+            self.root.after(0, self.ax.clear)
 
             if method == "FFT":
                 freq, df_bin, psd = sa.fft_spectrum(time, sig)
-                self.ax.loglog(freq, psd)
-                self.ax.set_title("FFT Spectrum")
+                self.root.after(0, self.ax.loglog, freq, psd)
+                self.root.after(0, self.ax.set_title, "FFT Spectrum")
             elif method == "Welch":
                 freq, df_bin, psd = sa.welch_spectrum(time, sig)
-                self.ax.loglog(freq, psd)
-                self.ax.set_title("Welch Spectrum")
+                self.root.after(0, self.ax.loglog, freq, psd)
+                self.root.after(0, self.ax.set_title, "Welch Spectrum")
 
-            self.ax.set_xlabel("Frequency (Hz)")
-            self.ax.set_ylabel("PSD")
-            self.ax.grid(True)
-            self.canvas.draw()
+            self.root.after(0, self.ax.set_xlabel, "Frequency (Hz)")
+            self.root.after(0, self.ax.set_ylabel, "PSD")
+            self.root.after(0, self.ax.grid, True)
+            self.root.after(0, self.canvas.draw)
 
         except Exception as e:
-            messagebox.showerror("Error", str(e))
+            self.root.after(0, messagebox.showerror, "Error", str(e))
+        finally:
+            self.root.after(0, lambda: self.sa_plot_btn.config(state=tk.NORMAL, text="Plot Spectrum"))
 
 if __name__ == "__main__":
     root = tk.Tk()
