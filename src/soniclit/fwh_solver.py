@@ -574,8 +574,13 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
             min_tau = np.min(tau) if len(tau) > 0 else 0
             t_o = source_times+min_tau #observer times
             tau_star = tau-min_tau
-            interpolation_weight = (tau_star%dt)/dt
-            j_star = (tau_star // dt).astype(int)
+
+            # Optimization: Computing scaled tau_star once and using floor
+            # Avoids costly floating point modulo and division operations
+            inv_dt = 1.0 / dt
+            tau_star_scaled = tau_star * inv_dt
+            j_star = np.floor(tau_star_scaled).astype(int)
+            interpolation_weight = tau_star_scaled - j_star
 
             max_tau = np.max(tau) if len(tau) > 0 else 0
             t_range = [int((max_tau-min_tau)//dt)+2,len(t_o)-1]
@@ -937,8 +942,12 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
         t_o = source_times + global_min_tau #observer times
         tau_star = tau - global_min_tau # consistent delay
 
-        interpolation_weight = (tau_star%dt)/dt
-        j_star = (tau_star // dt).astype(int)
+        # Optimization: Computing scaled tau_star once and using floor
+        # Avoids costly floating point modulo and division operations
+        inv_dt = 1.0 / dt
+        tau_star_scaled = tau_star * inv_dt
+        j_star = np.floor(tau_star_scaled).astype(int)
+        interpolation_weight = tau_star_scaled - j_star
 
         local_max_tau = np.max(tau) if len(tau) > 0 else float('-inf')
         global_max_tau = comm.allreduce(local_max_tau, op=MPI.MAX)
