@@ -17,3 +17,7 @@
 ## 2025-02-28 - Built-in Min/Max vs NumPy Min/Max
 **Learning:** Using Python's built-in `min()` and `max()` on NumPy arrays iterates through elements one-by-one in Python, which is significantly slower compared to `np.min()` and `np.max()`. For large arrays (e.g., $N > 1,000,000$), this causes a massive bottleneck. Additionally, `min()` will fail if the array is completely empty, whereas `np.min()` allows explicit length checking or handles edge cases better.
 **Action:** Always replace `min()` and `max()` with `np.min()` and `np.max()` when operating on NumPy arrays to ensure operations stay optimized in C, avoiding slow Python loop overhead. Ensure to guard against empty arrays when replacing `min()` or `max()`.
+
+## 2025-03-11 - Modulo and Floor Division on NumPy Arrays
+**Learning:** When calculating fractional weights and integer bins from time vectors (e.g., `interpolation_weight = (tau_star % dt) / dt` and `j_star = (tau_star // dt).astype(int)`), using Python's modulo (`%`) and floor division (`//`) operators directly on NumPy arrays incurs high performance overhead (~2.3x slower) compared to vector multiplication and subtraction.
+**Action:** Avoid `%` and `//` for array variables where mathematically equivalent operations exist using base `numpy` primitives. Multiply by the inverse (`inv_dt = 1.0 / dt`) and use `np.floor` followed by integer casting and explicit array subtraction to achieve much faster C-optimized speeds.
