@@ -78,3 +78,7 @@
 ## 2026-03-20 - Disabling Action Buttons on File Validation Failure
 **Learning:** Performing file validation upon upload is good, but allowing users to proceed when validation fails creates a disjointed experience where the failure happens deep in the processing logic.
 **Action:** Always track file validation state (e.g., `zip_is_valid = True/False`) and use it to disable downstream action buttons with explicit help text explaining the requirements.
+
+## 2026-03-11 - Threading and Button Feedback in Tkinter
+**Learning:** Running long tasks on the main Tkinter thread causes the entire UI to freeze, leading users to believe the application has crashed and often prompting them to click buttons multiple times or force-quit.
+**Action:** Use `threading.Thread` for heavy operations and immediately update the trigger button to a disabled state (e.g., "Running...") to provide visual feedback and prevent multiple invocations. Use `self.root.after(0, ...)` to safely schedule all UI updates (including re-enabling the button) from the background thread back to the main event loop.

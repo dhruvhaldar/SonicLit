@@ -29,6 +29,26 @@ class TestGuiE2E(unittest.TestCase):
 
     def setUp(self):
         # Patch messagebox to avoid hanging on popups
+        self.patcher_thread = patch('threading.Thread')
+        self.mock_thread = self.patcher_thread.start()
+
+        # When threading.Thread is called, return an object that just calls the target
+        class MockThread:
+            def __init__(self, target, args=(), daemon=True):
+                self.target = target
+                self.args = args
+            def start(self):
+                self.target(*self.args)
+
+        self.mock_thread.side_effect = MockThread
+
+        # Also patch `after` to just call the function immediately
+        self.patcher_after = patch('tkinter.Tk.after')
+        self.mock_after = self.patcher_after.start()
+        def mock_after(ms, func, *args):
+            func(*args)
+        self.mock_after.side_effect = mock_after
+
         self.patcher_info = patch('tkinter.messagebox.showinfo')
         self.patcher_error = patch('tkinter.messagebox.showerror')
         self.patcher_warning = patch('tkinter.messagebox.showwarning')
@@ -45,6 +65,8 @@ class TestGuiE2E(unittest.TestCase):
         self.patcher_info.stop()
         self.patcher_error.stop()
         self.patcher_warning.stop()
+        self.patcher_thread.stop()
+        self.patcher_after.stop()
 
     def test_fwh_flow(self):
         # Set inputs
@@ -61,6 +83,13 @@ class TestGuiE2E(unittest.TestCase):
         # Invoke run
         self.app.fwh_run_btn.invoke()
         self.root.update()
+        import time
+        # Wait for thread to finish
+        for _ in range(50):
+            if self.app.fwh_run_btn.cget("state") == tk.NORMAL:
+                break
+            self.root.update()
+            time.sleep(0.1)
 
         # Check if error occurred
         if self.mock_showerror.called:
@@ -86,6 +115,12 @@ class TestGuiE2E(unittest.TestCase):
 
         self.app.sa_plot_btn.invoke()
         self.root.update()
+        import time
+        for _ in range(50):
+            if self.app.sa_plot_btn.cget("state") == tk.NORMAL:
+                break
+            self.root.update()
+            time.sleep(0.1)
 
         if self.mock_showerror.called:
             args, _ = self.mock_showerror.call_args
