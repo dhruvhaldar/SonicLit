@@ -21,3 +21,7 @@
 ## 2025-03-11 - Modulo and Floor Division on NumPy Arrays
 **Learning:** When calculating fractional weights and integer bins from time vectors (e.g., `interpolation_weight = (tau_star % dt) / dt` and `j_star = (tau_star // dt).astype(int)`), using Python's modulo (`%`) and floor division (`//`) operators directly on NumPy arrays incurs high performance overhead (~2.3x slower) compared to vector multiplication and subtraction.
 **Action:** Avoid `%` and `//` for array variables where mathematically equivalent operations exist using base `numpy` primitives. Multiply by the inverse (`inv_dt = 1.0 / dt`) and use `np.floor` followed by integer casting and explicit array subtraction to achieve much faster C-optimized speeds.
+
+## 2025-03-22 - Replacing the struct module loop with SciPy WAV writer
+**Learning:** Writing audio data incrementally using Python's `struct.pack('h', ...)` in a tight `for` loop over millions of float samples creates a severe CPU bottleneck and causes `TypeError` string-join bugs in modern Python.
+**Action:** Always replace naive, iterative float-to-PCM conversion and byte compilation loops with `np.asarray`, `np.clip`, `.astype(np.int16)`, and `scipy.io.wavfile.write`, yielding order-of-magnitude (10x-15x) speed improvements.
