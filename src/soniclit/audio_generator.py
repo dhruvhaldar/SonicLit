@@ -1,5 +1,3 @@
-import wave
-import struct
 import sys
 import csv
 import numpy as np
@@ -26,27 +24,13 @@ def write_wav(audio_data: list, output_filename: str, sampling_rate: int, amplit
     -------
     None
     """
-    wav_file = wave.open(output_filename, 'w')
-    num_channels = 1
-    sample_width = 2
-    sampling_rate = sampling_rate
-    num_frames = len(audio_data)
-    compression_type = "NONE"
-    compression_name = "not compressed"
-    wav_file.setparams((num_channels,
-                       sample_width,
-                       sampling_rate,
-                       num_frames,
-                       compression_type,
-                       compression_name))
-    audio_frames = []
-    for sample in audio_data:
-        scaled_sample = int(sample * amplitude_scaling)
-        audio_frames.append(struct.pack('h', scaled_sample))
-
-    audio_frames = ''.join(audio_frames)
-    wav_file.writeframes(audio_frames)
-    wav_file.close()
+    # OPTIMIZATION: Convert audio data to a numpy array, scale it vectorially,
+    # clip to valid 16-bit PCM range to avoid overflow, cast to np.int16,
+    # and use scipy's optimized wavfile.write. This replaces a slow python loop
+    # using struct.pack and fixes a TypeError with string concatenation on bytes.
+    audio_array = np.asarray(audio_data)
+    scaled_data = np.clip(audio_array * amplitude_scaling, -32768, 32767).astype(np.int16)
+    wavfile.write(output_filename, sampling_rate, scaled_data)
     print("%s written" % (output_filename))
 
 
