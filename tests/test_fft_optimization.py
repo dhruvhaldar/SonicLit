@@ -1,6 +1,6 @@
-
 import unittest
 import numpy as np
+import time
 from soniclit import signal_processing as sa
 
 def original_psd_logic(sig_fft, scale_spectrum, sampling_frequency, len_signal):
@@ -31,6 +31,20 @@ class TestFFTOptimization(unittest.TestCase):
         freq, df, psd_optimized_unscaled = sa.fft_spectrum(t, sig, scale_spectrum=False)
         psd_expected_unscaled = original_psd_logic(sig_fft, False, sa.sampling_freq(t), len(t))
         np.testing.assert_allclose(psd_optimized_unscaled, psd_expected_unscaled, rtol=1e-10, atol=1e-10)
+
+    def test_coherence_fft_optimization(self):
+        # We benchmark `cpsd**2 / psd1 / psd2` vs `cpsd**2 / (psd1 * psd2)`
+        # This isn't testing the output of coherence_fft per se, but verifying the memory states
+        # mathematically are equivalent.
+
+        psd1 = np.random.rand(1000)
+        psd2 = np.random.rand(1000)
+        cpsd = np.random.rand(1000)
+
+        res1 = cpsd**2 / (psd1 * psd2)
+        res2 = cpsd**2 / psd1 / psd2
+
+        np.testing.assert_allclose(res1, res2, rtol=1e-10, atol=1e-10)
 
 if __name__ == "__main__":
     unittest.main()

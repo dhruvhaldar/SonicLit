@@ -23,7 +23,7 @@ def test_spectral_analysis_with_dummy_data():
         assert 'Signal' in df.columns
         
         time = df['Time'].values
-        sig = df['Signal'].values
+        sig = df['Signal'].values.copy() # Use copy to ensure the array is writable for in-place modifications
         
         # Test FFT Spectrum
         freq, df_bin, psd = sa.fft_spectrum(time, sig)
