@@ -82,3 +82,11 @@
 ## 2026-03-11 - Threading and Button Feedback in Tkinter
 **Learning:** Running long tasks on the main Tkinter thread causes the entire UI to freeze, leading users to believe the application has crashed and often prompting them to click buttons multiple times or force-quit.
 **Action:** Use `threading.Thread` for heavy operations and immediately update the trigger button to a disabled state (e.g., "Running...") to provide visual feedback and prevent multiple invocations. Use `self.root.after(0, ...)` to safely schedule all UI updates (including re-enabling the button) from the background thread back to the main event loop.
+
+## 2026-03-22 - Improving File Selection UX in Tkinter
+**Learning:** When users must select files, failing to filter `filedialog` by the expected type creates visual clutter. Additionally, requiring users to manually type absolute output paths without a 'Browse' directory option is error-prone and frustrating.
+**Action:** Always provide a 'Browse' button next to path inputs and use `filetypes` filtering in `askopenfilename` or `asksaveasfilename` to streamline selection.
+
+## 2026-03-22 - Read-Only Log Viewers in Tkinter
+**Learning:** By default, Tkinter `Text` widgets allow users to edit and delete text. If used as a simple application log viewer, users might accidentally modify the output history, causing confusion.
+**Action:** Initialize log `Text` widgets with `state=tk.DISABLED` to make them read-only. When the application needs to append logs, temporarily switch to `state=tk.NORMAL`, insert the text, and revert to `state=tk.DISABLED`.
