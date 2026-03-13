@@ -49,6 +49,7 @@ class SonicLitApp:
         ttk.Label(frame, text="Output File Prefix:").grid(row=row, column=0, sticky='w', padx=5, pady=5)
         self.fwh_out_file = ttk.Entry(frame, width=50)
         self.fwh_out_file.grid(row=row, column=1, padx=5, pady=5)
+        ttk.Button(frame, text="Browse", command=self.browse_out_file).grid(row=row, column=2, padx=5, pady=5)
         row += 1
 
         # Observer Locations
@@ -98,7 +99,7 @@ class SonicLitApp:
         # Log area
         ttk.Label(frame, text="Logs:").grid(row=row, column=0, sticky='w', padx=5, pady=5)
         row += 1
-        self.fwh_log = tk.Text(frame, height=10, width=80)
+        self.fwh_log = tk.Text(frame, height=10, width=80, state=tk.DISABLED)
         self.fwh_log.grid(row=row, column=0, columnspan=3, padx=5, pady=5)
 
     def setup_spectral_tab(self):
@@ -149,7 +150,7 @@ class SonicLitApp:
         # Let's let user select any file and we take the dir + prefix?
         # Actually user needs to select "prefix".
         # Let's ask for "0.csv" and we strip "0.csv"
-        filename = filedialog.askopenfilename(title="Select 0.csv file")
+        filename = filedialog.askopenfilename(title="Select 0.csv file", filetypes=[("0.csv Surface Files", "*0.csv"), ("All Files", "*.*")])
         if filename:
             if filename.endswith("0.csv"):
                 prefix = filename[:-5]
@@ -158,15 +159,23 @@ class SonicLitApp:
             else:
                 messagebox.showwarning("Warning", "Please select the '0.csv' file to infer prefix.")
 
+    def browse_out_file(self):
+        filename = filedialog.asksaveasfilename(title="Select Output Prefix", defaultextension="")
+        if filename:
+            self.fwh_out_file.delete(0, tk.END)
+            self.fwh_out_file.insert(0, filename)
+
     def browse_sa_file(self):
-        filename = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
+        filename = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv"), ("All Files", "*.*")])
         if filename:
             self.sa_file.delete(0, tk.END)
             self.sa_file.insert(0, filename)
 
     def log(self, message):
+        self.fwh_log.config(state=tk.NORMAL)
         self.fwh_log.insert(tk.END, message + "\n")
         self.fwh_log.see(tk.END)
+        self.fwh_log.config(state=tk.DISABLED)
 
     def run_fwh(self):
         try:
