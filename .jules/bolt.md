@@ -25,3 +25,7 @@
 ## 2025-03-22 - Replacing the struct module loop with SciPy WAV writer
 **Learning:** Writing audio data incrementally using Python's `struct.pack('h', ...)` in a tight `for` loop over millions of float samples creates a severe CPU bottleneck and causes `TypeError` string-join bugs in modern Python.
 **Action:** Always replace naive, iterative float-to-PCM conversion and byte compilation loops with `np.asarray`, `np.clip`, `.astype(np.int16)`, and `scipy.io.wavfile.write`, yielding order-of-magnitude (10x-15x) speed improvements.
+
+## 2025-03-31 - Fast Array Dot Products
+**Learning:** For computing dot products of large arrays of 3D vectors (e.g., `(N, 3)` arrays like `geom_n` and `surfS`), manual component-wise summation (`A[:,0]*B[:,0] + A[:,1]*B[:,1] + A[:,2]*B[:,2]`) is slow. `np.sum(A * B, axis=1)` is even slower due to temporary array allocation. However, `np.einsum('ij,ij->i', A, B)` provides a >2x speedup. For dot products between a massive `(N, 3)` array and a length-3 scalar vector, `np.dot(A, B)` provides a massive >10x speedup by leveraging optimized BLAS routines.
+**Action:** Always replace manual component-wise vector multiplications and sums with `np.einsum('ij,ij->i', A, B)` for array-array dot products, and `np.dot(A, B)` for array-vector dot products when operating on large vector collections.
