@@ -306,7 +306,8 @@ def _calculate_source_terms_local(surface_data_local, preprocessed_data_local, a
         # preS columns: [n1, n2, n3, r1, r2, r3]
 
         # Calculate v dot n (N,)
-        v_dot_n = surfS[:,1]*preS[:,0] + surfS[:,2]*preS[:,1] + surfS[:,3]*preS[:,2]
+        # Optimized: np.einsum is significantly faster than manual component-wise summation for large array dot products
+        v_dot_n = np.einsum('ij,ij->i', surfS[:, 1:4], preS[:, 0:3])
 
         # Calculate rho * (v dot n) (N,)
         rho_v_dot_n = surfS[:,0] * v_dot_n
