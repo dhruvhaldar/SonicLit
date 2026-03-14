@@ -90,3 +90,7 @@
 ## 2026-03-22 - Read-Only Log Viewers in Tkinter
 **Learning:** By default, Tkinter `Text` widgets allow users to edit and delete text. If used as a simple application log viewer, users might accidentally modify the output history, causing confusion.
 **Action:** Initialize log `Text` widgets with `state=tk.DISABLED` to make them read-only. When the application needs to append logs, temporarily switch to `state=tk.NORMAL`, insert the text, and revert to `state=tk.DISABLED`.
+
+## 2026-03-24 - Interactive Data Visualization Tools
+**Learning:** For scientific applications generating plots, static images are insufficient. Users need to zoom, pan, and extract coordinates to interpret data effectively. Without a toolbar, the desktop Matplotlib canvas is a static picture rather than an analysis tool.
+**Action:** Always include interactive toolbars (e.g., `NavigationToolbar2Tk`) when embedding charts (like Matplotlib) in desktop GUIs to empower users to explore the data.
