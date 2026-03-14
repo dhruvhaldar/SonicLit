@@ -1079,10 +1079,12 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
 
         Qn = None
         if is_permeable:
-             v_dot_n = surfS[:,1]*geom_n_local[:,0] + surfS[:,2]*geom_n_local[:,1] + surfS[:,3]*geom_n_local[:,2]
+             # Optimized: np.einsum is significantly faster than manual component-wise summation for large array dot products
+             v_dot_n = np.einsum('ij,ij->i', surfS[:, 1:4], geom_n_local)
              rho_v_dot_n = surfS[:,0] * v_dot_n
              if not skip_Qn:
-                 U0_dot_n = U0_vec[0]*geom_n_local[:,0] + U0_vec[1]*geom_n_local[:,1] + U0_vec[2]*geom_n_local[:,2]
+                 # Optimized: np.dot leverages BLAS for faster execution
+                 U0_dot_n = np.dot(geom_n_local, U0_vec)
                  Qn = -ambient_density_local * U0_dot_n + rho_v_dot_n
 
              L1 = surfS[:,4]*geom_n_local[:,0] + rho_v_dot_n * (surfS[:,1]-U0_vec[0])
