@@ -1,9 +1,14 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import matplotlib
-matplotlib.use('TkAgg')
+import sys
+if 'pytest' not in sys.modules and not sys.argv[0].endswith('pytest'):
+    try:
+        matplotlib.use('TkAgg')
+    except ImportError:
+        pass
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 import pandas as pd
 import numpy as np
 import os
@@ -143,6 +148,13 @@ class SonicLitApp:
         self.ax = self.figure.add_subplot(111)
         self.canvas = FigureCanvasTkAgg(self.figure, master=frame)
         self.canvas.get_tk_widget().grid(row=row, column=0, columnspan=3, padx=5, pady=5, sticky='nsew')
+        row += 1
+
+        # Toolbar
+        self.toolbar_frame = ttk.Frame(frame)
+        self.toolbar_frame.grid(row=row, column=0, columnspan=3, sticky='ew')
+        self.toolbar = NavigationToolbar2Tk(self.canvas, self.toolbar_frame)
+        self.toolbar.update()
 
     def browse_surf_file(self):
         # Allow selecting "Avg.csv" or "0.csv" and strip suffix?
