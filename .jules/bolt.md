@@ -29,3 +29,7 @@
 ## 2025-03-31 - Fast Array Dot Products
 **Learning:** For computing dot products of large arrays of 3D vectors (e.g., `(N, 3)` arrays like `geom_n` and `surfS`), manual component-wise summation (`A[:,0]*B[:,0] + A[:,1]*B[:,1] + A[:,2]*B[:,2]`) is slow. `np.sum(A * B, axis=1)` is even slower due to temporary array allocation. However, `np.einsum('ij,ij->i', A, B)` provides a >2x speedup. For dot products between a massive `(N, 3)` array and a length-3 scalar vector, `np.dot(A, B)` provides a massive >10x speedup by leveraging optimized BLAS routines.
 **Action:** Always replace manual component-wise vector multiplications and sums with `np.einsum('ij,ij->i', A, B)` for array-array dot products, and `np.dot(A, B)` for array-vector dot products when operating on large vector collections.
+
+## 2025-04-03 - Reusing Inverse Matrices/Arrays
+**Learning:** In NumPy algorithms iterating over complex formulas, you will often find divisions by an array (e.g., `/ R`) located just a few lines after an inverse of the array was calculated (e.g., `inv_R = 1.0 / R`). Replacing the division with multiplication by the precalculated inverse avoids duplicating expensive division operations.
+**Action:** In NumPy mathematical routines, actively scan for existing inverses (e.g., `inv_R = 1.0 / R`) within the same loop scope and replace subsequent array divisions (e.g., `geom_dS / R`) with multiplication by the inverse (e.g., `geom_dS * inv_R`) to yield significant speedups.

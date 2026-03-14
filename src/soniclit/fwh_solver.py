@@ -600,8 +600,9 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
             sp_c0, sp_c1, sp_c2, sp_c3 = _precompute_spline_coeffs(interpolation_weight)
 
             # Optimization: Reuse factors to avoid redundant array divisions and multiplications (~45% speedup)
-            factor_pt1 = geom_dS / (R * one_minus_Mr_sq)
-            factor_pq2 = factor_pt1 / R
+            # Optimization: Use precalculated inv_R to avoid division by R
+            factor_pt1 = geom_dS * inv_R / one_minus_Mr_sq
+            factor_pq2 = factor_pt1 * inv_R
             factor_pt2 = factor_pq2 * (Mr - M2) / one_minus_Mr
             factor_pq1 = factor_pt1 / speed_of_sound
             factor_pq3 = factor_pt2
@@ -967,8 +968,9 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
         sp_c0, sp_c1, sp_c2, sp_c3 = _precompute_spline_coeffs(interpolation_weight)
 
         # Optimization: Reuse factors to avoid redundant array divisions and multiplications (~45% speedup)
-        factor_pt1 = geom_dS_local / (R * one_minus_Mr_sq)
-        factor_pq2 = factor_pt1 / R
+        # Optimization: Use precalculated inv_R to avoid division by R
+        factor_pt1 = geom_dS_local * inv_R / one_minus_Mr_sq
+        factor_pq2 = factor_pt1 * inv_R
         factor_pt2 = factor_pq2 * (Mr - M2) / one_minus_Mr
         factor_pq1 = factor_pt1 / speed_of_sound
         factor_pq3 = factor_pt2
