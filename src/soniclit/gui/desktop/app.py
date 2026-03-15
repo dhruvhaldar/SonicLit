@@ -172,10 +172,14 @@ class SonicLitApp:
                 messagebox.showwarning("Warning", "Please select the '0.csv' file to infer prefix.")
 
     def browse_out_file(self):
-        filename = filedialog.asksaveasfilename(title="Select Output Prefix", defaultextension="")
+        filename = filedialog.askdirectory(title="Select Output Directory")
         if filename:
+            current_path = self.fwh_out_file.get()
+            prefix = os.path.basename(current_path)
+            if not prefix:
+                prefix = "fwh_out"
             self.fwh_out_file.delete(0, tk.END)
-            self.fwh_out_file.insert(0, filename)
+            self.fwh_out_file.insert(0, os.path.join(filename, prefix))
 
     def browse_sa_file(self):
         filename = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv"), ("All Files", "*.*")])
