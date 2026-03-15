@@ -547,6 +547,10 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
         # Optimization: Precompute inverse speed of sound
         inv_speed_of_sound = 1.0 / speed_of_sound
 
+        one_minus_M2 = 1.0 - M2
+        speed_inv_4pi = speed_of_sound * inv_4pi
+        inv_speed_4pi = inv_speed_of_sound * inv_4pi
+
         for idx, xo in enumerate(observer_locations):
             # Same logic as original
             diff = xo - geom_y
@@ -564,7 +568,8 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
 
             # Radiation vector (mathematically optimized to avoid (N,3) allocation)
             inv_R = 1.0 / R
-            Mr = M2 - Mr0 * inv_R
+            Mr0_inv_R = Mr0 * inv_R
+            Mr = M2 - Mr0_inv_R
 
             # Optimization: Precompute n . r for impermeable surface optimization
             geom_n_dot_r = None
@@ -598,26 +603,24 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
             acoustic_pressure = np.zeros(len(t_o)+D)
             len_p_act = np.max(j_star) + 1
 
-            one_minus_Mr = 1.0 - Mr
-            # Optimization: Explicit multiplication is faster than the power operator for small integer powers
-            one_minus_Mr_sq = one_minus_Mr * one_minus_Mr
+            # Optimization: Mathematically refactor 1-Mr and precompute inverses to avoid array division
+            one_minus_Mr = one_minus_M2 + Mr0_inv_R
+            inv_one_minus_Mr = 1.0 / one_minus_Mr
+            inv_one_minus_Mr_sq = inv_one_minus_Mr * inv_one_minus_Mr
 
             sp_c0, sp_c1, sp_c2, sp_c3 = _precompute_spline_coeffs(interpolation_weight)
 
             # Optimization: Reuse factors to avoid redundant array divisions and multiplications (~45% speedup)
             # Optimization: Use precalculated inv_R to avoid division by R
-            factor_pt1 = geom_dS * inv_R / one_minus_Mr_sq
+            factor_pt1 = geom_dS * inv_R * inv_one_minus_Mr_sq
             factor_pq2 = factor_pt1 * inv_R
-            factor_pt2 = factor_pq2 * (Mr - M2) / one_minus_Mr
-            # Optimization: Multiply by inverse speed_of_sound rather than using array division
-            factor_pq1 = factor_pt1 * inv_speed_of_sound
-            factor_pq3 = factor_pt2
+            factor_pt2 = factor_pq2 * (-Mr0_inv_R) * inv_one_minus_Mr
 
             factor_pt1_scaled = factor_pt1 * inv_4pi
-            factor_pt2_scaled = factor_pt2 * (speed_of_sound * inv_4pi)
-            factor_pq1_scaled = factor_pq1 * inv_4pi
+            factor_pt2_scaled = factor_pt2 * speed_inv_4pi
+            factor_pq1_scaled = factor_pt1 * inv_speed_4pi
             factor_pq2_scaled = factor_pq2 * inv_4pi
-            factor_pq3_scaled = factor_pq3 * inv_4pi
+            factor_pq3_scaled = factor_pt2 * inv_4pi
 
             # Precompute combined weights to optimize inner loop
             k = inv_2dt
@@ -919,6 +922,10 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
     # Optimization: Precompute inverse speed of sound
     inv_speed_of_sound = 1.0 / speed_of_sound
 
+    one_minus_M2 = 1.0 - M2
+    speed_inv_4pi = speed_of_sound * inv_4pi
+    inv_speed_4pi = inv_speed_of_sound * inv_4pi
+
     for idx, xo in enumerate(observer_locations):
         # Calculate time independent quantities (using LOCAL geometry)
         diff = xo - geom_y_local
@@ -936,7 +943,8 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
 
         # Radiation vector (mathematically optimized to avoid (N,3) allocation)
         inv_R = 1.0 / R
-        Mr = M2 - Mr0 * inv_R
+        Mr0_inv_R = Mr0 * inv_R
+        Mr = M2 - Mr0_inv_R
 
         # Optimization: Precompute n . r for impermeable surface optimization
         geom_n_dot_r = None
@@ -972,26 +980,24 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
         acoustic_pressure = np.zeros(len(t_o)+D)
         len_p_act = max_j_star_global + 1
 
-        one_minus_Mr = 1.0 - Mr
-        # Optimization: Explicit multiplication is faster than the power operator for small integer powers
-        one_minus_Mr_sq = one_minus_Mr * one_minus_Mr
+        # Optimization: Mathematically refactor 1-Mr and precompute inverses to avoid array division
+        one_minus_Mr = one_minus_M2 + Mr0_inv_R
+        inv_one_minus_Mr = 1.0 / one_minus_Mr
+        inv_one_minus_Mr_sq = inv_one_minus_Mr * inv_one_minus_Mr
 
         sp_c0, sp_c1, sp_c2, sp_c3 = _precompute_spline_coeffs(interpolation_weight)
 
         # Optimization: Reuse factors to avoid redundant array divisions and multiplications (~45% speedup)
         # Optimization: Use precalculated inv_R to avoid division by R
-        factor_pt1 = geom_dS_local * inv_R / one_minus_Mr_sq
+        factor_pt1 = geom_dS_local * inv_R * inv_one_minus_Mr_sq
         factor_pq2 = factor_pt1 * inv_R
-        factor_pt2 = factor_pq2 * (Mr - M2) / one_minus_Mr
-        # Optimization: Multiply by inverse speed_of_sound rather than using array division
-        factor_pq1 = factor_pt1 * inv_speed_of_sound
-        factor_pq3 = factor_pt2
+        factor_pt2 = factor_pq2 * (-Mr0_inv_R) * inv_one_minus_Mr
 
         factor_pt1_scaled = factor_pt1 * inv_4pi
-        factor_pt2_scaled = factor_pt2 * (speed_of_sound * inv_4pi)
-        factor_pq1_scaled = factor_pq1 * inv_4pi
+        factor_pt2_scaled = factor_pt2 * speed_inv_4pi
+        factor_pq1_scaled = factor_pt1 * inv_speed_4pi
         factor_pq2_scaled = factor_pq2 * inv_4pi
-        factor_pq3_scaled = factor_pq3 * inv_4pi
+        factor_pq3_scaled = factor_pt2 * inv_4pi
 
         # Precompute combined weights to optimize inner loop
         k = inv_2dt
