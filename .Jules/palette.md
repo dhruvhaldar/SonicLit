@@ -94,3 +94,7 @@
 ## 2026-03-24 - Interactive Data Visualization Tools
 **Learning:** For scientific applications generating plots, static images are insufficient. Users need to zoom, pan, and extract coordinates to interpret data effectively. Without a toolbar, the desktop Matplotlib canvas is a static picture rather than an analysis tool.
 **Action:** Always include interactive toolbars (e.g., `NavigationToolbar2Tk`) when embedding charts (like Matplotlib) in desktop GUIs to empower users to explore the data.
+
+## 2024-03-24 - Surfacing Peak Values from Charts
+**Learning:** Relying solely on interactive plots to find key values (like peak frequency) is a poor experience and poses an accessibility barrier for users who cannot easily interact with graphs.
+**Action:** Always extract and display critical statistical points (like maxima) explicitly alongside charts using text-based UI components (like `st.metric`).
