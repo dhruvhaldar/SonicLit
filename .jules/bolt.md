@@ -41,3 +41,6 @@
 ## 2025-04-12 - Mathematical Refactoring of Vector Iterators
 **Learning:** Evaluating combinations of operations like division by arrays (`/ arr`) and multiplication by independent loop-invariant scalars inside an inner loop causes slower execution than mathematically reorganizing the expressions to compute a combination constant outside the loop, computing array inverses first (`inv_arr = 1.0 / arr`), and reducing the steps inside.
 **Action:** When operating heavily on equations within an iterator loop such as observer positions, analyze constants (e.g., `speed_of_sound * inv_4pi`), combine them outside the loop to limit redundant computations per observer step, and factor out denominators into pre-computed inverse arrays.
+## 2025-05-20 - Fast Array Division by scalar inverse
+**Learning:** Dividing an array by a scalar is generally slower than multiplying the array by the inverse of the scalar.
+**Action:** Replace division by scalar with multiplication by scalar inverse.

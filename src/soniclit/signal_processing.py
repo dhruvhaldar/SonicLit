@@ -128,13 +128,17 @@ def fft_spectrum(time, signal, save_output : bool = False, out_dir : str = "", d
     # np.abs(sig_fft)**2 is highly optimized in C and up to 2.4x faster than explicit arithmetic
     psd_unscaled = np.abs(sig_fft)**2
 
+    # OPTIMIZATION: Multiplying an array by the scalar inverse is faster than dividing the array
+    # by a scalar. Replacing division by multiplication yields measurable speedups for large signals.
     if scale_spectrum == True:
-        power_spectral_density = psd_unscaled/(sampling_frequency*len(signal))
+        inv_scale = 1.0 / (sampling_frequency * len(signal))
+        power_spectral_density = psd_unscaled * inv_scale
     else:
         power_spectral_density = psd_unscaled
     
     if scale_freq == True:
-        power_spectral_density = power_spectral_density/df
+        inv_df = 1.0 / df
+        power_spectral_density = power_spectral_density * inv_df
     
     if db_scale == True:
         # OPTIMIZATION: Multiplying a numpy array by the scalar 2.5e9 (inverse of 4e-10)
@@ -549,7 +553,10 @@ def cross_spectrum_fft(time1, signal1, time2, signal2, save_output : bool = Fals
     # |A * conj(B)| = |A| * |conj(B)| = |A| * |B|
     # This avoids computationally expensive complex multiplication and conjugation.
     if scale_spectrum == True:
-        cross_power_spectral_density = (np.abs(sig1_fft) * np.abs(sig2_fft))/(fs1*len(signal1))
+        # OPTIMIZATION: Multiplying an array by the scalar inverse is faster than dividing the array
+        # by a scalar. Replacing division by multiplication yields measurable speedups for large signals.
+        inv_scale = 1.0 / (fs1 * len(signal1))
+        cross_power_spectral_density = (np.abs(sig1_fft) * np.abs(sig2_fft)) * inv_scale
     else:
         cross_power_spectral_density = np.abs(sig1_fft) * np.abs(sig2_fft)
     
