@@ -41,3 +41,7 @@
 ## 2025-04-12 - Mathematical Refactoring of Vector Iterators
 **Learning:** Evaluating combinations of operations like division by arrays (`/ arr`) and multiplication by independent loop-invariant scalars inside an inner loop causes slower execution than mathematically reorganizing the expressions to compute a combination constant outside the loop, computing array inverses first (`inv_arr = 1.0 / arr`), and reducing the steps inside.
 **Action:** When operating heavily on equations within an iterator loop such as observer positions, analyze constants (e.g., `speed_of_sound * inv_4pi`), combine them outside the loop to limit redundant computations per observer step, and factor out denominators into pre-computed inverse arrays.
+
+## 2025-05-15 - Vector Magnitude and Dot Product using Einsum
+**Learning:** For computing dot products of large arrays of 3D vectors against themselves or other arrays (e.g., `d0*d0 + d1*d1 + d2*d2` or `n0*d0 + n1*d1 + n2*d2`), `np.einsum('ij,ij->i', A, B)` is significantly faster (~1.5x-2x) than manual component-wise sum of products.
+**Action:** Replace manual component-wise sums with `np.einsum` for array operations in performance-critical sections to reduce intermediate allocations and improve speed.
