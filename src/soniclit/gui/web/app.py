@@ -373,7 +373,7 @@ with tab_spectral:
                 nyquist = fs / 2.0
 
                 # Display metrics
-                m1, m2, m3 = st.columns(3)
+                m1, m2, m3, m4 = st.columns(4)
                 m1.metric("Sampling Rate", f"{fs} Hz", help="Number of samples recorded per second. Determines the maximum resolvable frequency.")
                 m2.metric("Nyquist Freq", f"{nyquist} Hz", help="Maximum frequency that can be accurately represented without aliasing (half of the sampling rate).")
 
@@ -390,6 +390,11 @@ with tab_spectral:
                         ax.set_title(f"Welch Spectrum: {sig_col}")
 
                     m3.metric("Freq Resolution", f"{df_bin:.3f} Hz", help="Frequency spacing between points in the spectrum. Finer resolution requires longer time segments.")
+
+                    # UX Enhancement: Explicitly surface key data points to improve accessibility and reduce cognitive load
+                    peak_idx = np.argmax(psd)
+                    peak_freq = freq[peak_idx]
+                    m4.metric("Peak Frequency", f"{peak_freq:.1f} Hz", help="The frequency with the highest spectral power.")
 
                     ax.set_xlabel("Frequency (Hz)")
 
