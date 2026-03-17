@@ -246,10 +246,8 @@ def calculate_source_terms_serial(surf_file : str, preprocessed_data, ambient_pr
     else:
         if not skip_Qn:
             # Qn = (-rho0*U0) dot n
-            # Optimized: Explicit calculation to handle both scalar and array ambient_density
-            Qn = (-ambient_density * U0[0]) * geom_n[:, 0] + \
-                 (-ambient_density * U0[1]) * geom_n[:, 1] + \
-                 (-ambient_density * U0[2]) * geom_n[:, 2]
+            # Optimized: np.dot leverages BLAS for faster execution
+            Qn = -ambient_density * np.dot(geom_n, U0)
         else:
             Qn = None
 
@@ -537,7 +535,7 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
         # Optimization: Precompute n . M for impermeable surface optimization
         geom_n_dot_mach = None
         if not is_permeable:
-             geom_n_dot_mach = geom_n[:, 0]*mach_number[0] + geom_n[:, 1]*mach_number[1] + geom_n[:, 2]*mach_number[2]
+             geom_n_dot_mach = np.dot(geom_n, mach_number)
 
         # Optimization: Explicit scalar arithmetic is significantly faster than np.sum for length-3 arrays
         M2 = mach_number[0]**2 + mach_number[1]**2 + mach_number[2]**2
@@ -914,7 +912,7 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
     # Optimization: Precompute n . M for impermeable surface optimization
     geom_n_dot_mach_local = None
     if not is_permeable:
-         geom_n_dot_mach_local = geom_n_local[:, 0]*mach_number[0] + geom_n_local[:, 1]*mach_number[1] + geom_n_local[:, 2]*mach_number[2]
+         geom_n_dot_mach_local = np.dot(geom_n_local, mach_number)
 
     # Optimization: Explicit scalar arithmetic is significantly faster than np.sum for length-3 arrays
     M2 = mach_number[0]**2 + mach_number[1]**2 + mach_number[2]**2
