@@ -45,3 +45,7 @@
 ## 2025-05-15 - Vector Magnitude and Dot Product using Einsum
 **Learning:** For computing dot products of large arrays of 3D vectors against themselves or other arrays (e.g., `d0*d0 + d1*d1 + d2*d2` or `n0*d0 + n1*d1 + n2*d2`), `np.einsum('ij,ij->i', A, B)` is significantly faster (~1.5x-2x) than manual component-wise sum of products.
 **Action:** Replace manual component-wise sums with `np.einsum` for array operations in performance-critical sections to reduce intermediate allocations and improve speed.
+
+## 2025-06-12 - Fast Array-Vector Dot Products
+**Learning:** For computing dot products between a massive `(N, 3)` array (e.g., `geom_n`) and a length-3 scalar vector (e.g., `mach_number`), manual component-wise summation (`A[:,0]*B[0] + A[:,1]*B[1] + A[:,2]*B[2]`) is slow. `np.dot(A, B)` provides a >5x speedup by leveraging optimized BLAS routines.
+**Action:** Always replace manual component-wise vector multiplications and sums with `np.dot(A, B)` for array-vector dot products when operating on large vector collections.
