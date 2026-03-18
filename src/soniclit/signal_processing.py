@@ -37,7 +37,8 @@ def next_greater_power_of_2(num : int):
     >>> next_greater_power_of_2(5)
     
     """
-    return 2**(num-1).bit_length()
+    # OPTIMIZATION: Replaced 2**N with bitwise shift 1 << N, which is significantly faster.
+    return 1 << (num-1).bit_length()
 
 
 def sampling_freq(time):
