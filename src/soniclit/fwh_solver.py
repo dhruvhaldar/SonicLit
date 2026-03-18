@@ -434,7 +434,7 @@ def calculate_source_terms_parallel(surf_file : str, preprocessed_data, ambient_
 
 
 
-"""
+r"""
     This implementation is based on using the Garrick Triangle (GT) method for Farassat's formulation 1A of the FWH analogy, for **stationary source and observer positions**. This formulation can be used when simulating a wind tunnel or wind tunnel-like setup.
     
     Resources

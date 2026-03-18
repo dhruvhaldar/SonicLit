@@ -1,4 +1,4 @@
-"""
+r"""
 Function library to calculate the power spectra of an independant or a pair of input stationary signals, using common methods including simple FFT, Welch periodogram, etc.
 
 Check out this `StackExchange DSP forum question <https://dsp.stackexchange.com/questions/48216/understanding-fft-fft-size-and-bins>`_ 
@@ -67,7 +67,7 @@ def sampling_freq(time):
  
     
 def fft_spectrum(time, signal, save_output : bool = False, out_dir : str = "", db_scale : bool = False, scale_spectrum : bool = True, scale_freq : bool = False):
-    """
+    r"""
     Calculates the power spectrum of an input time-domain signal by taking the FFT of the signal and multiplying with its complex conjugate.
 
     Parameters
@@ -152,7 +152,7 @@ def fft_spectrum(time, signal, save_output : bool = False, out_dir : str = "", d
 
 def welch_spectrum(time, signal, save_output : bool = False, out_dir : str = "", window = 'hann', chunks : int = 4, overlap : float = 0.5,
                    db_scale : bool = False, scale_freq : bool = True):
-    """
+    r"""
     Calculates the power spectrum of an input signal using Welch's periodogram method. Unlike the plain FFT method, the signal is cut into chunks for smoothing and faster processing of the PSD.
 
     Parameters
@@ -357,7 +357,7 @@ def cross_corr(signal1, signal2, mode : str = 'full', save_output : bool = False
 
 def cross_spectrum(time1, signal1, time2, signal2, save_output : bool = False, out_dir : str = "", window = 'hann', chunks : int = 4, overlap : float = 0.5,
                    scale_freq : bool = True, db_scale : bool = False):
-    """
+    r"""
     Calculates the Cross Power Spectrum of a pair of input signals using Welch's method. Principles of windowing and overlap are the same as the standard Welch function :func:`~spectral_analysis.welch_spectrum`.
 
     Parameters
@@ -470,7 +470,7 @@ def cross_spectrum(time1, signal1, time2, signal2, save_output : bool = False, o
 
 def cross_spectrum_fft(time1, signal1, time2, signal2, save_output : bool = False, out_dir : str = "",
                        scale_spectrum : bool = True, scale_freq : bool = False, db_scale : bool = False):
-    """
+    r"""
     Calculates the Cross Spectrum of a pair of signals using the FFT method and no windowing. The implementation follows the same principles as the :func:`~spectral_analysis.fft_spectrum` function.
 
     Parameters
