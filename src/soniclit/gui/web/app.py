@@ -7,6 +7,7 @@ import shutil
 import zipfile
 import ast
 import tempfile
+import io
 # Import SonicLit modules
 import soniclit.fwh_solver as fwh
 import soniclit.signal_processing as sa
@@ -69,34 +70,50 @@ with tab_fwh:
         # We will ask user to upload a ZIP file containing these.
         uploaded_surf_zip = st.file_uploader("Upload Surface Data (ZIP)", type="zip", help="Zip file should contain surface CSVs (Avg.csv, 0.csv, 1.csv...)")
 
-        zip_is_valid = False
+        if 'use_sample_fwh' not in st.session_state:
+            st.session_state.use_sample_fwh = False
+
+        def load_sample_fwh():
+            st.session_state.use_sample_fwh = True
+
+        def clear_sample_fwh():
+            st.session_state.use_sample_fwh = False
+
         if uploaded_surf_zip:
-            if not is_file_size_valid(uploaded_surf_zip, MAX_ZIP_SIZE_MB):
+            st.session_state.use_sample_fwh = False
+
+        file_to_process = uploaded_surf_zip
+
+        if has_sample_data:
+            if not st.session_state.use_sample_fwh and uploaded_surf_zip is None:
+                st.button("Load Built-in Sample Data", on_click=load_sample_fwh, help="Use built-in sample data directly to test the solver without uploading.")
+            elif st.session_state.use_sample_fwh:
+                st.button("Clear Sample Data", on_click=clear_sample_fwh)
+                
+            if st.session_state.use_sample_fwh:
+                with open(data_path, "rb") as f:
+                    file_to_process = io.BytesIO(f.read())
+                st.info("✅ Using built-in sample data (`dummy_data.zip`).")
+
+        zip_is_valid = False
+        if file_to_process:
+            if not is_file_size_valid(file_to_process, MAX_ZIP_SIZE_MB):
                 st.error(f"File too large. Please upload a ZIP file smaller than {MAX_ZIP_SIZE_MB}MB.")
-                uploaded_surf_zip = None
+                if not st.session_state.use_sample_fwh:
+                    uploaded_surf_zip = None
+                file_to_process = None
             else:
-                is_valid, msg = validate_zip_contents(uploaded_surf_zip, "Avg.csv")
+                is_valid, msg = validate_zip_contents(file_to_process, "Avg.csv")
 
                 # Sanitize output to prevent Markdown/XSS injection
                 safe_msg = sanitize_markdown(msg.replace('Found ', ''))
 
                 if is_valid:
-                    st.success(f"✅ Valid surface data found: {safe_msg}")
+                    if not st.session_state.use_sample_fwh:
+                        st.success(f"✅ Valid surface data found: {safe_msg}")
                     zip_is_valid = True
                 else:
                     st.error(f"❌ Validation Error: {sanitize_markdown(msg)} Please upload a ZIP containing surface CSVs.")
-
-        if has_sample_data:
-            with st.expander("Need sample data?"):
-                st.markdown("Download this sample ZIP to test the FWH solver.")
-                with open(data_path, "rb") as f:
-                    st.download_button(
-                        label="Download Sample Data (ZIP)",
-                        data=f,
-                        file_name="sample_surface_data.zip",
-                        mime="application/zip",
-                        help="Download sample data to test the solver."
-                    )
 
         obs_mode = st.radio("**Observer Location**", ["Single Point", "Coordinate List"], horizontal=True, help="Choose how to define observer coordinates.")
 
@@ -187,8 +204,8 @@ with tab_fwh:
 
         # UX Enhancement: Explain why the run button is disabled
         button_help = "Start the FWH solver"
-        if uploaded_surf_zip is None:
-            button_help = "Upload a surface data ZIP first to run the solver"
+        if file_to_process is None:
+            button_help = "Upload a surface data ZIP or load sample data first to run the solver"
         elif not zip_is_valid:
             button_help = "Upload a valid surface data ZIP containing *Avg.csv to run"
         elif not obs_valid:
@@ -216,8 +233,8 @@ with tab_fwh:
              """)
 
     if run_btn:
-        if uploaded_surf_zip is None:
-            st.error("Please upload a ZIP file containing surface data.")
+        if file_to_process is None:
+            st.error("Please provide surface data.")
         else:
             try:
                 st.toast("🚀 Starting FWH Solver...", icon="🚀")
@@ -239,7 +256,7 @@ with tab_fwh:
                     with st.status("Processing Simulation...", expanded=True) as status:
                         st.write("📂 Extracting surface data...")
                         # Extract ZIP
-                        with zipfile.ZipFile(uploaded_surf_zip, 'r') as zip_ref:
+                        with zipfile.ZipFile(file_to_process, 'r') as zip_ref:
                             safe_extract_zip(zip_ref, surf_dir)
 
                         st.write("⚙️ Configuring solver...")
@@ -311,25 +328,49 @@ with tab_spectral:
     with col1:
         uploaded_sig = st.file_uploader("Upload Signal CSV", type="csv", help="CSV file with time and signal columns.")
 
-        if has_sample_data:
-             with st.expander("Need sample data?"):
-                st.markdown("Download the sample ZIP which contains `signal.csv`.")
-                with open(data_path, "rb") as f:
-                    st.download_button(
-                        label="Download Sample Data (ZIP)",
-                        data=f,
-                        file_name="sample_signal_data.zip",
-                        mime="application/zip",
-                        key="download_sample_spectral",
-                        help="Download sample data containing `signal.csv` to test the spectral analysis."
-                    )
+        if 'use_sample_spectral' not in st.session_state:
+            st.session_state.use_sample_spectral = False
+
+        def load_sample_spectral():
+            st.session_state.use_sample_spectral = True
+
+        def clear_sample_spectral():
+            st.session_state.use_sample_spectral = False
 
         if uploaded_sig:
-            if not is_file_size_valid(uploaded_sig, MAX_CSV_SIZE_MB):
+            st.session_state.use_sample_spectral = False
+
+        file_to_process_spectral = uploaded_sig
+
+        if has_sample_data:
+            if not st.session_state.use_sample_spectral and uploaded_sig is None:
+                st.button("Load Built-in Sample Data", on_click=load_sample_spectral, help="Use built-in sample data directly to test spectral analysis.")
+            elif st.session_state.use_sample_spectral:
+                st.button("Clear Sample Data", on_click=clear_sample_spectral)
+                
+            if st.session_state.use_sample_spectral:
+                try:
+                    with zipfile.ZipFile(data_path, 'r') as z:
+                        signal_files = [n for n in z.namelist() if "signal.csv" in n.lower()]
+                        if signal_files:
+                            with z.open(signal_files[0]) as f:
+                                file_to_process_spectral = io.BytesIO(f.read())
+                                st.info(f"✅ Using built-in sample data (`{signal_files[0]}`).")
+                        else:
+                            st.error("Could not find signal.csv in sample data.")
+                            file_to_process_spectral = None
+                except Exception as e:
+                    st.error(f"Failed to load sample data: {e}")
+                    file_to_process_spectral = None
+
+        if file_to_process_spectral:
+            if not is_file_size_valid(file_to_process_spectral, MAX_CSV_SIZE_MB):
                 st.error(f"File too large. Please upload a CSV file smaller than {MAX_CSV_SIZE_MB}MB.")
-                uploaded_sig = None
+                if not st.session_state.use_sample_spectral:
+                    uploaded_sig = None
+                file_to_process_spectral = None
             else:
-                df = pd.read_csv(uploaded_sig)
+                df = pd.read_csv(file_to_process_spectral)
 
                 with st.expander("Preview Uploaded Data"):
                     st.dataframe(df.head(), use_container_width=True)
@@ -363,7 +404,7 @@ with tab_spectral:
                         overlap = st.slider("Overlap (Fraction)", min_value=0.0, max_value=0.99, value=0.5, step=0.05, help="Fraction of overlap between segments (typically 0.5 or 50%).")
 
     with col2:
-        if uploaded_sig and sig_col is not None:
+        if file_to_process_spectral and sig_col is not None:
              try:
                 time_vals = df[time_col].values
                 sig = df[sig_col].values
@@ -425,7 +466,7 @@ with tab_spectral:
 
              except Exception as e:
                  st.error(f"Error: {e}")
-        elif uploaded_sig and sig_col is None:
+        elif file_to_process_spectral and sig_col is None:
              st.info("⚠️ Please upload a CSV file with at least two columns to proceed with spectral analysis.")
         else:
              st.info("👋 Upload a CSV file on the left to get started with spectral analysis.")

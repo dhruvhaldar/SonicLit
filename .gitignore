@@ -1,11 +1,44 @@
-dist/
-.venv/
-__pycache__/bench_data/
-benchmark_output.txt
-benchmark_fwh.py
-bench_data/
-benchmark_output.txt
-benchmark_fwh.py
-bench_data/
+# OS & Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.bak
+
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Testing & Tools
+.pytest_cache/
+test_results/
+pytest_output.log
+.coverage
+htmlcov/
+.tox/
+
+# Streamlit
+.streamlit/
+streamlit.log
+
+# Project-specific Data & Benchmark related
+dummy_data.zip
+benchmark_output.txt
+benchmark_fwh.py
+bench_data/
+tests/web_e2e_data/
