@@ -1,3 +1,5 @@
+import math
+
 class Modes:
     """To calculate acoustic mode frequencies within a open cavity flow
     """
@@ -58,7 +60,9 @@ class Modes:
         gamma_minus_1by2: float = (gamma - 1) * 0.5
         velocity_over_length: float = self.freestream_velocity / self.reference_length
         num: float = mode - alpha
-        den: float = self.mach_number * (1 + gamma_minus_1by2 * self.mach_number ** 2) ** (-0.5) + (1.0 / empirical_constant_k_nu)
+        # OPTIMIZATION: Replaced ** (-0.5) with 1.0 / math.sqrt() and squared using explicit
+        # multiplication for a measurable performance improvement for scalar values.
+        den: float = self.mach_number * (1.0 / math.sqrt(1 + gamma_minus_1by2 * (self.mach_number * self.mach_number))) + (1.0 / empirical_constant_k_nu)
         mode_frequency: float = velocity_over_length * num / den
 
         return mode_frequency

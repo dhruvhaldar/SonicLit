@@ -49,3 +49,7 @@
 ## 2025-06-12 - Fast Array-Vector Dot Products
 **Learning:** For computing dot products between a massive `(N, 3)` array (e.g., `geom_n`) and a length-3 scalar vector (e.g., `mach_number`), manual component-wise summation (`A[:,0]*B[0] + A[:,1]*B[1] + A[:,2]*B[2]`) is slow. `np.dot(A, B)` provides a >5x speedup by leveraging optimized BLAS routines.
 **Action:** Always replace manual component-wise vector multiplications and sums with `np.dot(A, B)` for array-vector dot products when operating on large vector collections.
+
+## $(date +%Y-%m-%d) - Scalar Power Operation Optimization
+**Learning:** In Python, applying the `**` operator with fractional/negative powers (e.g., `x ** -0.5`) on scalar floats relies on generalized exponentiation routines that are significantly slower than standard C-bound `math` module functions like `1.0 / math.sqrt(x)`. Similarly, computing powers of 2 for integers (e.g., `2 ** N`) is slower than the equivalent bitwise left shift `1 << N`.
+**Action:** When working with scalar math (especially in tight or hot loops outside of NumPy bounds), always prefer explicit bitwise shifting for integer powers of 2, and use optimized C bindings like `math.sqrt()` combined with division instead of negative fractional powers.
