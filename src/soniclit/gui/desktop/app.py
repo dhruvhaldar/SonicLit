@@ -104,7 +104,9 @@ class SonicLitApp:
         # Log area
         ttk.Label(frame, text="Logs:").grid(row=row, column=0, sticky='w', padx=5, pady=5)
         row += 1
-        self.fwh_log = tk.Text(frame, height=10, width=80, state=tk.DISABLED)
+        self.fwh_log = tk.Text(frame, height=10, width=80)
+        self.fwh_log.insert(tk.END, "👋 Welcome to the FWH Solver.\nConfigure parameters and click 'Run FWH Solver' to see logs here.\n")
+        self.fwh_log.config(state=tk.DISABLED)
         self.fwh_log.grid(row=row, column=0, columnspan=3, padx=5, pady=5)
 
     def setup_spectral_tab(self):
@@ -146,6 +148,13 @@ class SonicLitApp:
         # Canvas
         self.figure = plt.Figure(figsize=(6, 4), dpi=100)
         self.ax = self.figure.add_subplot(111)
+
+        # UX Enhancement: Add a helpful empty state to the blank canvas
+        self.ax.text(0.5, 0.5, "Upload a CSV and click 'Plot Spectrum' to begin",
+                     horizontalalignment='center', verticalalignment='center',
+                     transform=self.ax.transAxes, color='gray')
+        self.ax.set_axis_off()
+
         self.canvas = FigureCanvasTkAgg(self.figure, master=frame)
         self.canvas.get_tk_widget().grid(row=row, column=0, columnspan=3, padx=5, pady=5, sticky='nsew')
         row += 1
@@ -264,6 +273,7 @@ class SonicLitApp:
             sig = df[sig_col].values
 
             self.root.after(0, self.ax.clear)
+            self.root.after(0, self.ax.set_axis_on)
 
             if method == "FFT":
                 freq, df_bin, psd = sa.fft_spectrum(time, sig)

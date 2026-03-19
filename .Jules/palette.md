@@ -98,3 +98,7 @@
 ## 2024-03-24 - Surfacing Peak Values from Charts
 **Learning:** Relying solely on interactive plots to find key values (like peak frequency) is a poor experience and poses an accessibility barrier for users who cannot easily interact with graphs.
 **Action:** Always extract and display critical statistical points (like maxima) explicitly alongside charts using text-based UI components (like `st.metric`).
+
+## 2026-03-24 - Helpful Empty States for Blank Canvases
+**Learning:** Opening a desktop GUI with a large, completely blank white Matplotlib canvas is intimidating and offers no guidance on what the user should do next.
+**Action:** Replace intimidating blank canvases with an instructional text placeholder using `ax.text(..., transform=ax.transAxes)` and hide the axis borders/ticks with `ax.set_axis_off()`. Turn the axis back on (`ax.set_axis_on()`) only right before rendering the actual data.
