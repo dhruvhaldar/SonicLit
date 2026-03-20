@@ -78,10 +78,21 @@ class SonicLitApp:
         row += 1
 
         # Mach Number
-        ttk.Label(frame, text="Mach Number (e.g. [0.1, 0, 0]):").grid(row=row, column=0, sticky='w', padx=5, pady=5)
-        self.fwh_ma = ttk.Entry(frame, width=50)
-        self.fwh_ma.insert(0, "[0.0, 0.0, 0.0]")
-        self.fwh_ma.grid(row=row, column=1, padx=5, pady=5)
+        ttk.Label(frame, text="Mach Vector Components (Mx, My, Mz):").grid(row=row, column=0, sticky='w', padx=5, pady=5)
+        ma_frame = ttk.Frame(frame)
+        ma_frame.grid(row=row, column=1, sticky='w', padx=5, pady=5)
+
+        self.fwh_mx = ttk.Entry(ma_frame, width=10)
+        self.fwh_mx.insert(0, "0.0")
+        self.fwh_mx.grid(row=0, column=0, padx=(0, 5))
+
+        self.fwh_my = ttk.Entry(ma_frame, width=10)
+        self.fwh_my.insert(0, "0.0")
+        self.fwh_my.grid(row=0, column=1, padx=(0, 5))
+
+        self.fwh_mz = ttk.Entry(ma_frame, width=10)
+        self.fwh_mz.insert(0, "0.0")
+        self.fwh_mz.grid(row=0, column=2)
         row += 1
 
         # Temperature
@@ -209,7 +220,12 @@ class SonicLitApp:
             obs_loc = ast.literal_eval(self.fwh_obs_loc.get())
             dt = float(self.fwh_dt.get())
             steps = int(self.fwh_steps.get())
-            ma = ast.literal_eval(self.fwh_ma.get())
+
+            mx = float(self.fwh_mx.get())
+            my = float(self.fwh_my.get())
+            mz = float(self.fwh_mz.get())
+            ma = [mx, my, mz]
+
             perm = self.fwh_perm_var.get()
             temp = float(self.fwh_temp.get())
         except Exception as e:
