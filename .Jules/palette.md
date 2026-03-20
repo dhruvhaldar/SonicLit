@@ -102,3 +102,7 @@
 ## 2026-03-24 - Helpful Empty States for Blank Canvases
 **Learning:** Opening a desktop GUI with a large, completely blank white Matplotlib canvas is intimidating and offers no guidance on what the user should do next.
 **Action:** Replace intimidating blank canvases with an instructional text placeholder using `ax.text(..., transform=ax.transAxes)` and hide the axis borders/ticks with `ax.set_axis_off()`. Turn the axis back on (`ax.set_axis_on()`) only right before rendering the actual data.
+
+## 2026-03-24 - Structured Inputs for Vectors in Desktop GUIs
+**Learning:** Forcing users to type Python lists (e.g., `[0.1, 0, 0]`) into a single `ttk.Entry` field for vector components (like Mach Number) leads to frequent syntax and formatting errors. It creates unnecessary friction and cognitive load.
+**Action:** Replace single text inputs that expect list/vector data with distinct, dedicated entry fields for each component (e.g., Mx, My, Mz) arranged horizontally. Reconstruct the vector in the background logic to maintain compatibility without sacrificing UX.
