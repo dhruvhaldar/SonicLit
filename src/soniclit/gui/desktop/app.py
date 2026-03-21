@@ -57,11 +57,22 @@ class SonicLitApp:
         ttk.Button(frame, text="Browse", command=self.browse_out_file).grid(row=row, column=2, padx=5, pady=5)
         row += 1
 
-        # Observer Locations
-        ttk.Label(frame, text="Observer Locations (e.g. [[0,0,10]]):").grid(row=row, column=0, sticky='w', padx=5, pady=5)
-        self.fwh_obs_loc = ttk.Entry(frame, width=50)
-        self.fwh_obs_loc.insert(0, "[[0.0, 0.0, 1.0]]")
-        self.fwh_obs_loc.grid(row=row, column=1, padx=5, pady=5)
+        # Observer Location
+        ttk.Label(frame, text="Observer Location (Ox, Oy, Oz):").grid(row=row, column=0, sticky='w', padx=5, pady=5)
+        obs_frame = ttk.Frame(frame)
+        obs_frame.grid(row=row, column=1, sticky='w', padx=5, pady=5)
+
+        self.fwh_ox = ttk.Entry(obs_frame, width=10)
+        self.fwh_ox.insert(0, "0.0")
+        self.fwh_ox.grid(row=0, column=0, padx=(0, 5))
+
+        self.fwh_oy = ttk.Entry(obs_frame, width=10)
+        self.fwh_oy.insert(0, "0.0")
+        self.fwh_oy.grid(row=0, column=1, padx=(0, 5))
+
+        self.fwh_oz = ttk.Entry(obs_frame, width=10)
+        self.fwh_oz.insert(0, "1.0")
+        self.fwh_oz.grid(row=0, column=2)
         row += 1
 
         # Time setup
@@ -217,7 +228,12 @@ class SonicLitApp:
         try:
             surf_file = self.fwh_surf_file.get()
             out_file = self.fwh_out_file.get()
-            obs_loc = ast.literal_eval(self.fwh_obs_loc.get())
+
+            ox = float(self.fwh_ox.get())
+            oy = float(self.fwh_oy.get())
+            oz = float(self.fwh_oz.get())
+            obs_loc = [[ox, oy, oz]]
+
             dt = float(self.fwh_dt.get())
             steps = int(self.fwh_steps.get())
 
