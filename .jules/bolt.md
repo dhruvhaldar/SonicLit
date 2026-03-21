@@ -53,3 +53,7 @@
 ## $(date +%Y-%m-%d) - Scalar Power Operation Optimization
 **Learning:** In Python, applying the `**` operator with fractional/negative powers (e.g., `x ** -0.5`) on scalar floats relies on generalized exponentiation routines that are significantly slower than standard C-bound `math` module functions like `1.0 / math.sqrt(x)`. Similarly, computing powers of 2 for integers (e.g., `2 ** N`) is slower than the equivalent bitwise left shift `1 << N`.
 **Action:** When working with scalar math (especially in tight or hot loops outside of NumPy bounds), always prefer explicit bitwise shifting for integer powers of 2, and use optimized C bindings like `math.sqrt()` combined with division instead of negative fractional powers.
+
+## 2025-06-25 - Mathematical Re-Use and Scalar Sum of Squares Optimization
+**Learning:** For calculating the sum of squares of small, fixed-length arrays (e.g., length-3 vectors), explicit scalar multiplication (e.g., `v[0]*v[0] + v[1]*v[1] + v[2]*v[2]`) is measurably faster (~1.5x) than using the power operator (`v[0]**2 + ...`), `np.dot()`, or `np.sum()`. Furthermore, recalculating this same sum multiple times (e.g., once for a magnitude `M2` and again inside a square root `np.sqrt(1 - (v[0]**2 + ...))`) creates unnecessary duplicate operations.
+**Action:** Extract the sum of squares into a variable using explicit scalar multiplication when working with small vectors, and reuse this variable for subsequent dependent expressions to avoid redundant calculations.

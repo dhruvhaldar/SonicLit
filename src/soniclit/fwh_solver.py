@@ -517,7 +517,11 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
         geom_n = preprocessed_data[['n1','n2','n3']].to_numpy()
         geom_dS = preprocessed_data['dS'].to_numpy()
 
-        beta = np.sqrt(1-mach_number[0]**2-mach_number[1]**2-mach_number[2]**2)
+        # Optimization: Explicit scalar arithmetic is significantly faster than np.sum for length-3 arrays
+        # Computing M2 outside the loop avoids redundant power calculations
+        M2 = mach_number[0]*mach_number[0] + mach_number[1]*mach_number[1] + mach_number[2]*mach_number[2]
+
+        beta = np.sqrt(1-M2)
         # Optimization: Precompute beta squared to avoid redundant power calculations in the observer loop
         beta_sq = beta * beta
         inv_beta_sq = 1.0 / beta_sq
@@ -538,8 +542,6 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
         if not is_permeable:
              geom_n_dot_mach = np.dot(geom_n, mach_number)
 
-        # Optimization: Explicit scalar arithmetic is significantly faster than np.sum for length-3 arrays
-        M2 = mach_number[0]**2 + mach_number[1]**2 + mach_number[2]**2
         inv_4pi = 1.0 / (4.0 * np.pi)
         inv_2dt = 0.5 / dt
 
@@ -879,7 +881,11 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
     geom_n = preprocessed_data[['n1','n2','n3']].to_numpy()
     geom_dS = preprocessed_data['dS'].to_numpy()
 
-    beta = np.sqrt(1-mach_number[0]**2-mach_number[1]**2-mach_number[2]**2)
+    # Optimization: Explicit scalar arithmetic is significantly faster than np.sum for length-3 arrays
+    # Computing M2 outside the loop avoids redundant power calculations
+    M2 = mach_number[0]*mach_number[0] + mach_number[1]*mach_number[1] + mach_number[2]*mach_number[2]
+
+    beta = np.sqrt(1-M2)
     # Optimization: Precompute beta squared to avoid redundant power calculations in the observer loop
     beta_sq = beta * beta
     inv_beta_sq = 1.0 / beta_sq
@@ -915,8 +921,6 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
     if not is_permeable:
          geom_n_dot_mach_local = np.dot(geom_n_local, mach_number)
 
-    # Optimization: Explicit scalar arithmetic is significantly faster than np.sum for length-3 arrays
-    M2 = mach_number[0]**2 + mach_number[1]**2 + mach_number[2]**2
     inv_4pi = 1.0 / (4.0 * np.pi)
     inv_2dt = 0.5 / dt
 
