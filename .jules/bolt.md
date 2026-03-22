@@ -61,3 +61,7 @@
 ## 2025-07-20 - Cold Path Micro-optimizations
 **Learning:** Optimizing single scalar math operations (e.g., removing a redundant `np.sqrt`) in cold paths (outside main processing loops or before heavy file I/O operations) provides zero measurable impact and constitutes premature micro-optimization. The previous patch failed because it targeted a cold path, committing a violation of the rule to avoid micro-optimizations with no measurable impact.
 **Action:** Focus profiling and optimization efforts strictly on hot paths, such as inner loops and large array computations. Do not apply mathematical micro-optimizations to setup or initialization code.
+
+## 2025-10-24 - CSV Loading Optimization
+**Learning:** Reading a large CSV file multiple times to extract different columns individually incurs significant I/O and parsing overhead.
+**Action:** Always combine column reads into a single `pd.read_csv` call using the `usecols` parameter when extracting multiple arrays from the same file.
