@@ -57,3 +57,7 @@
 ## 2025-06-25 - Mathematical Re-Use and Scalar Sum of Squares Optimization
 **Learning:** For calculating the sum of squares of small, fixed-length arrays (e.g., length-3 vectors), explicit scalar multiplication (e.g., `v[0]*v[0] + v[1]*v[1] + v[2]*v[2]`) is measurably faster (~1.5x) than using the power operator (`v[0]**2 + ...`), `np.dot()`, or `np.sum()`. Furthermore, recalculating this same sum multiple times (e.g., once for a magnitude `M2` and again inside a square root `np.sqrt(1 - (v[0]**2 + ...))`) creates unnecessary duplicate operations.
 **Action:** Extract the sum of squares into a variable using explicit scalar multiplication when working with small vectors, and reuse this variable for subsequent dependent expressions to avoid redundant calculations.
+
+## 2025-07-20 - Cold Path Micro-optimizations
+**Learning:** Optimizing single scalar math operations (e.g., removing a redundant `np.sqrt`) in cold paths (outside main processing loops or before heavy file I/O operations) provides zero measurable impact and constitutes premature micro-optimization. The previous patch failed because it targeted a cold path, committing a violation of the rule to avoid micro-optimizations with no measurable impact.
+**Action:** Focus profiling and optimization efforts strictly on hot paths, such as inner loops and large array computations. Do not apply mathematical micro-optimizations to setup or initialization code.
