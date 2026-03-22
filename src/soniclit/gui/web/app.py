@@ -86,9 +86,9 @@ with tab_fwh:
 
         if has_sample_data:
             if not st.session_state.use_sample_fwh and uploaded_surf_zip is None:
-                st.button("Load Built-in Sample Data", on_click=load_sample_fwh, help="Use built-in sample data directly to test the solver without uploading.")
+                st.button("Load Built-in Sample Data", on_click=load_sample_fwh, key="btn_load_fwh", help="Use built-in sample data directly to test the solver without uploading.")
             elif st.session_state.use_sample_fwh:
-                st.button("Clear Sample Data", on_click=clear_sample_fwh)
+                st.button("Clear Sample Data", on_click=clear_sample_fwh, key="btn_clear_fwh", help="Remove the built-in sample data to allow uploading your own file.")
                 
             if st.session_state.use_sample_fwh:
                 with open(data_path, "rb") as f:
@@ -344,9 +344,9 @@ with tab_spectral:
 
         if has_sample_data:
             if not st.session_state.use_sample_spectral and uploaded_sig is None:
-                st.button("Load Built-in Sample Data", on_click=load_sample_spectral, help="Use built-in sample data directly to test spectral analysis.")
+                st.button("Load Built-in Sample Data", on_click=load_sample_spectral, key="btn_load_spectral", help="Use built-in sample data directly to test spectral analysis.")
             elif st.session_state.use_sample_spectral:
-                st.button("Clear Sample Data", on_click=clear_sample_spectral)
+                st.button("Clear Sample Data", on_click=clear_sample_spectral, key="btn_clear_spectral", help="Remove the built-in sample data to allow uploading your own file.")
                 
             if st.session_state.use_sample_spectral:
                 try:
