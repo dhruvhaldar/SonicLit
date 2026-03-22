@@ -180,6 +180,9 @@ with tab_fwh:
         with mc3: mz = st.number_input("Mz", value=0.0, step=0.1, format="%.2f", help="Mach Z")
         ma_str = str([mx, my, mz])
 
+        mach_mag = np.sqrt(mx**2 + my**2 + mz**2)
+        st.caption(f"✈️ Total Mach Magnitude: **{mach_mag:.2f}**")
+
         # Validation for ma
         ma_valid = True
         try:
