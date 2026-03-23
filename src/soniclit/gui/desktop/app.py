@@ -144,20 +144,20 @@ class SonicLitApp:
 
         # Columns
         ttk.Label(frame, text="Time Column Name:").grid(row=row, column=0, sticky='w', padx=5, pady=5)
-        self.sa_time_col = ttk.Entry(frame, width=20)
+        self.sa_time_col = ttk.Combobox(frame, width=18)
         self.sa_time_col.insert(0, "Time")
         self.sa_time_col.grid(row=row, column=1, sticky='w', padx=5, pady=5)
         row += 1
 
         ttk.Label(frame, text="Signal Column Name:").grid(row=row, column=0, sticky='w', padx=5, pady=5)
-        self.sa_sig_col = ttk.Entry(frame, width=20)
+        self.sa_sig_col = ttk.Combobox(frame, width=18)
         self.sa_sig_col.insert(0, "Signal")
         self.sa_sig_col.grid(row=row, column=1, sticky='w', padx=5, pady=5)
         row += 1
 
         # Method
         ttk.Label(frame, text="Method:").grid(row=row, column=0, sticky='w', padx=5, pady=5)
-        self.sa_method = ttk.Combobox(frame, values=["FFT", "Welch"])
+        self.sa_method = ttk.Combobox(frame, values=["FFT", "Welch"], state="readonly")
         self.sa_method.current(0)
         self.sa_method.grid(row=row, column=1, sticky='w', padx=5, pady=5)
         row += 1
@@ -217,6 +217,18 @@ class SonicLitApp:
         if filename:
             self.sa_file.delete(0, tk.END)
             self.sa_file.insert(0, filename)
+            # UX Enhancement: Auto-populate dropdowns with actual CSV columns to prevent typing errors
+            try:
+                df = pd.read_csv(filename, nrows=0)
+                cols = list(df.columns)
+                self.sa_time_col['values'] = cols
+                self.sa_sig_col['values'] = cols
+                if cols:
+                    self.sa_time_col.set(cols[0])
+                    if len(cols) > 1:
+                        self.sa_sig_col.set(cols[1])
+            except Exception:
+                pass
 
     def log(self, message):
         self.fwh_log.config(state=tk.NORMAL)
@@ -309,12 +321,14 @@ class SonicLitApp:
 
             if method == "FFT":
                 freq, df_bin, psd = sa.fft_spectrum(time, sig)
+                peak_freq = freq[np.argmax(psd)]
                 self.root.after(0, self.ax.loglog, freq, psd)
-                self.root.after(0, self.ax.set_title, "FFT Spectrum")
+                self.root.after(0, self.ax.set_title, f"FFT Spectrum (Peak: {peak_freq:.1f} Hz)")
             elif method == "Welch":
                 freq, df_bin, psd = sa.welch_spectrum(time, sig)
+                peak_freq = freq[np.argmax(psd)]
                 self.root.after(0, self.ax.loglog, freq, psd)
-                self.root.after(0, self.ax.set_title, "Welch Spectrum")
+                self.root.after(0, self.ax.set_title, f"Welch Spectrum (Peak: {peak_freq:.1f} Hz)")
 
             self.root.after(0, self.ax.set_xlabel, "Frequency (Hz)")
             self.root.after(0, self.ax.set_ylabel, "PSD")
