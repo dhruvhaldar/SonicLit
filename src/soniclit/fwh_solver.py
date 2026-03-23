@@ -603,7 +603,8 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
             D = (max_j_star-1)*(max_j_star>1)
 
             acoustic_pressure = np.zeros(len(t_o)+D)
-            len_p_act = np.max(j_star) + 1
+            # Optimization: Use cached max_j_star instead of recalculating np.max(j_star)
+            len_p_act = max_j_star + 1
 
             # Optimization: Mathematically refactor 1-Mr and precompute inverses to avoid array division
             one_minus_Mr = one_minus_M2 + Mr0_inv_R

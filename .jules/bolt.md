@@ -65,3 +65,7 @@
 ## 2025-10-24 - CSV Loading Optimization
 **Learning:** Reading a large CSV file multiple times to extract different columns individually incurs significant I/O and parsing overhead.
 **Action:** Always combine column reads into a single `pd.read_csv` call using the `usecols` parameter when extracting multiple arrays from the same file.
+
+## 2024-05-19 - Redundant array scanning
+**Learning:** Calling `np.max` on large arrays within inner loops or even cold paths when the value has already been computed earlier is a redundant performance sink.
+**Action:** Always check if an expensive aggregation operation like `np.max` or `np.min` has already been run and its result stored in a local variable before re-running it on the same array in the same scope.
