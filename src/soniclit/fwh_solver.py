@@ -69,22 +69,18 @@ def _precompute_spline_coeffs(interpolation_weight):
         Coefficients such that result = c0*f0 + c1*f1 + c2*f2 + c3*f3
     """
     w = interpolation_weight
+
+    # Optimization: Mathematically factorize the spline coefficients to avoid
+    # calculating the cube array (w_cu = w_sq * w) and reduce the total number
+    # of arithmetic operations per element.
     w_sq = w * w
-    w_cu = w_sq * w
+    w_sq_minus_1 = w_sq - 1.0
+    inv_6 = 1.0 / 6.0
 
-    # Coefficients derived from Horner's method implementation in cubic_spline:
-    # c0 = (w^3 - w) / 6
-    # c1 = (-3w^3 + 3w^2 + 6w) / 6 = -w^3/2 + w^2/2 + w
-    # c2 = (3w^3 - 6w^2 - 3w + 6) / 6 = w^3/2 - w^2 - w/2 + 1
-    # c3 = (-w^3 + 3w^2 - 2w) / 6
-
-    # Use 1.0/6.0 multiplication instead of division for speed
-    inv_6 = 1.0/6.0
-
-    c0 = (w_cu - w) * inv_6
-    c1 = -0.5*w_cu + 0.5*w_sq + w
-    c2 = 0.5*w_cu - w_sq - 0.5*w + 1.0
-    c3 = (-w_cu + 3.0*w_sq - 2.0*w) * inv_6
+    c0 = w * w_sq_minus_1 * inv_6
+    c1 = w * (-w_sq + w + 2.0) * 0.5
+    c2 = (w - 2.0) * w_sq_minus_1 * 0.5
+    c3 = w * (-w_sq + 3.0 * w - 2.0) * inv_6
 
     return c0, c1, c2, c3
 
