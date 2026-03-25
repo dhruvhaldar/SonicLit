@@ -139,12 +139,15 @@ def fft_spectrum(time, signal, save_output : bool = False, out_dir : str = "", d
     if scale_freq == True:
         # OPTIMIZATION: Multiplying arrays by the inverse of a scalar is faster than array division
         inv_df = 1.0 / df
-        power_spectral_density = power_spectral_density * inv_df
+        power_spectral_density *= inv_df
     
     if db_scale == True:
         # OPTIMIZATION: Multiplying a numpy array by the scalar 2.5e9 (inverse of 4e-10)
         # is faster than array division, yielding a measurable performance improvement.
-        power_spectral_density = 10.*np.log10(power_spectral_density * 2.5e9)
+        # Furthermore, in-place multiplication and logarithm avoid memory allocation overhead.
+        power_spectral_density *= 2.5e9
+        np.log10(power_spectral_density, out=power_spectral_density)
+        power_spectral_density *= 10.0
         #return freq, df, power_spectral_density
     
     if save_output == True:
@@ -233,7 +236,10 @@ def welch_spectrum(time, signal, save_output : bool = False, out_dir : str = "",
     if db_scale == True:
         # OPTIMIZATION: Multiplying a numpy array by the scalar 2.5e9 (inverse of 4e-10)
         # is faster than array division, yielding a measurable performance improvement.
-        power_spectral_density = 10.*np.log10(power_spectral_density * 2.5e9)
+        # Furthermore, in-place multiplication and logarithm avoid memory allocation overhead.
+        power_spectral_density *= 2.5e9
+        np.log10(power_spectral_density, out=power_spectral_density)
+        power_spectral_density *= 10.0
     
     if save_output == True:
         os.makedirs(out_dir, exist_ok=True)
@@ -297,6 +303,8 @@ def auto_corr(signal, save_output : bool = False, out_dir : str = "", normalised
         # OPTIMIZATION: Evaluating floor division (//) directly on a NumPy array is slow.
         # Multiplying by the inverse scalar and using np.floor() yields a ~25x speedup.
         inv_factor = 0.5 / (sig_var * len(signal))
+        # Note: Do not use in-place multiplication (*=) here because if auto_correlation
+        # is an integer array (e.g., from int16 PCM data), it will raise a UFuncTypeError.
         auto_correlation = np.floor(auto_correlation * inv_factor)
     
     acorr_lags = np.arange(n)
@@ -460,7 +468,10 @@ def cross_spectrum(time1, signal1, time2, signal2, save_output : bool = False, o
     if db_scale == True:
         # OPTIMIZATION: Multiplying a numpy array by the scalar 2.5e9 (inverse of 4e-10)
         # is faster than array division, yielding a measurable performance improvement.
-        cross_power_spectral_density = 10.*np.log10(cross_power_spectral_density * 2.5e9)
+        # Furthermore, in-place multiplication and logarithm avoid memory allocation overhead.
+        cross_power_spectral_density *= 2.5e9
+        np.log10(cross_power_spectral_density, out=cross_power_spectral_density)
+        cross_power_spectral_density *= 10.0
     
     if save_output == True:
         os.makedirs(out_dir, exist_ok=True)
@@ -563,7 +574,10 @@ def cross_spectrum_fft(time1, signal1, time2, signal2, save_output : bool = Fals
     if db_scale == True:
         # OPTIMIZATION: Multiplying a numpy array by the scalar 2.5e9 (inverse of 4e-10)
         # is faster than array division, yielding a measurable performance improvement.
-        cross_power_spectral_density = 10.*np.log10(cross_power_spectral_density * 2.5e9)
+        # Furthermore, in-place multiplication and logarithm avoid memory allocation overhead.
+        cross_power_spectral_density *= 2.5e9
+        np.log10(cross_power_spectral_density, out=cross_power_spectral_density)
+        cross_power_spectral_density *= 10.0
         
     if save_output == True:
         os.makedirs(out_dir, exist_ok=True)

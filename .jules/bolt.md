@@ -69,3 +69,7 @@
 ## 2024-05-19 - Redundant array scanning
 **Learning:** Calling `np.max` on large arrays within inner loops or even cold paths when the value has already been computed earlier is a redundant performance sink.
 **Action:** Always check if an expensive aggregation operation like `np.max` or `np.min` has already been run and its result stored in a local variable before re-running it on the same array in the same scope.
+
+## 2024-05-19 - In-place operation on arbitrary types
+**Learning:** In-place operations (e.g., `*=`) on NumPy arrays are fast and avoid allocating extra memory, but they preserve the type of the array they operate on. Performing in-place scaling using a float on an integer array raises a `UFuncTypeError`.
+**Action:** When replacing out-of-place scalar multiplication with an in-place one, confirm that the array being mutated is a float array. If its type is completely unknown or it may be an integer array (e.g. from PCM values), use out-of-place assignment to let NumPy automatically cast it to float, avoiding application crashes.
