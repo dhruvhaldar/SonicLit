@@ -596,10 +596,11 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
             interpolation_weight = tau_star_scaled - j_star
 
             max_tau = np.max(tau) if len(tau) > 0 else 0
-            t_range = [int((max_tau-min_tau)//dt)+2,len(t_o)-1]
+            t_range = [int((max_tau-min_tau)*inv_dt)+2,len(t_o)-1]
 
-            # Optimization: Use np.max for j_star as well
-            max_j_star = np.max(j_star) if len(j_star) > 0 else 0
+            # Optimization: Calculate max_j_star from already computed scalars max_tau and min_tau
+            # This completely avoids an expensive O(N) np.max() scan over the large j_star array.
+            max_j_star = int((max_tau - min_tau) * inv_dt) if len(tau) > 0 else 0
             D = (max_j_star-1)*(max_j_star>1)
 
             acoustic_pressure = np.zeros(len(t_o)+D)
@@ -979,8 +980,8 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
         local_max_tau = np.max(tau) if len(tau) > 0 else float('-inf')
         global_max_tau = comm.allreduce(local_max_tau, op=MPI.MAX)
 
-        t_range = [int((global_max_tau - global_min_tau)//dt)+2, len(t_o)-1]
-        max_j_star_global = int((global_max_tau - global_min_tau)//dt)
+        t_range = [int((global_max_tau - global_min_tau)*inv_dt)+2, len(t_o)-1]
+        max_j_star_global = int((global_max_tau - global_min_tau)*inv_dt)
         D = (max_j_star_global-1)*(max_j_star_global>1)
 
         acoustic_pressure = np.zeros(len(t_o)+D)
