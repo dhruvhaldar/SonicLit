@@ -5,3 +5,7 @@
 ## 2025-06-25 - Auto-populating Data Columns in Tkinter
 **Learning:** Relying on users to manually type CSV column names in `ttk.Entry` widgets frequently leads to syntax/capitalization errors, resulting in runtime parsing exceptions (`ValueError: Columns not found`).
 **Action:** When a user selects a data file via a file browser, proactively read the file header (`pd.read_csv(..., nrows=0)`) and dynamically populate `ttk.Combobox` options with the actual available column names. This transforms an error-prone text input into a robust, guided selection.
+
+## 2025-06-25 - Emoji Icons for Streamlit Buttons
+**Learning:** Adding string emojis to Streamlit `st.button` and `st.download_button` via the `icon` parameter significantly improves visual parsing and cognitive processing for primary action elements without requiring any custom CSS or additional dependencies.
+**Action:** Whenever introducing primary interactive buttons or download actions in Streamlit, assign a relevant emoji or standard icon to the `icon` parameter to enhance visual hierarchy and affordance.
