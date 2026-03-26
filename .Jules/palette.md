@@ -106,3 +106,6 @@
 ## 2026-03-24 - Structured Inputs for Vectors in Desktop GUIs
 **Learning:** Forcing users to type Python lists (e.g., `[0.1, 0, 0]`) into a single `ttk.Entry` field for vector components (like Mach Number) leads to frequent syntax and formatting errors. It creates unnecessary friction and cognitive load.
 **Action:** Replace single text inputs that expect list/vector data with distinct, dedicated entry fields for each component (e.g., Mx, My, Mz) arranged horizontally. Reconstruct the vector in the background logic to maintain compatibility without sacrificing UX.
+## 2024-05-18 - Input Validation State Improvements
+**Learning:** Empty string values in Tkinter `Entry` widgets often cause background threads and pandas to crash deep within the stack (e.g. `FileNotFoundError` followed by `RuntimeError: main thread is not in main loop`) when users click "Run" without configuring inputs.
+**Action:** Always extract and validate the widget state (using `.get().strip()`) synchronously in the main thread before starting background operations, providing explicit `messagebox.showwarning` feedback if inputs are missing.

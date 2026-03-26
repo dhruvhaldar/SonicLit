@@ -237,10 +237,14 @@ class SonicLitApp:
         self.fwh_log.config(state=tk.DISABLED)
 
     def run_fwh(self):
-        try:
-            surf_file = self.fwh_surf_file.get()
-            out_file = self.fwh_out_file.get()
+        surf_file = self.fwh_surf_file.get().strip()
+        out_file = self.fwh_out_file.get().strip()
 
+        if not surf_file or not out_file:
+            messagebox.showwarning("Input Required", "Please specify both Surface and Output file prefixes.")
+            return
+
+        try:
             ox = float(self.fwh_ox.get())
             oy = float(self.fwh_oy.get())
             oz = float(self.fwh_oz.get())
@@ -256,6 +260,9 @@ class SonicLitApp:
 
             perm = self.fwh_perm_var.get()
             temp = float(self.fwh_temp.get())
+        except ValueError as e:
+            messagebox.showerror("Input Error", f"Please ensure all numeric fields contain valid numbers.\n\nDetails: {e}")
+            return
         except Exception as e:
             messagebox.showerror("Error", str(e))
             return
@@ -297,7 +304,14 @@ class SonicLitApp:
             self.root.after(0, lambda: self.fwh_run_btn.config(state=tk.NORMAL, text="Run FWH Solver"))
 
     def plot_spectrum(self):
-        filename = self.sa_file.get()
+        filename = self.sa_file.get().strip()
+        if not filename:
+            messagebox.showwarning("Input Required", "Please select a Signal CSV file to plot.")
+            return
+        if not os.path.exists(filename):
+            messagebox.showerror("File Not Found", f"The file '{filename}' does not exist.")
+            return
+
         time_col = self.sa_time_col.get()
         sig_col = self.sa_sig_col.get()
         method = self.sa_method.get()
