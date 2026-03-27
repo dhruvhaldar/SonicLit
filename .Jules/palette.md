@@ -109,3 +109,7 @@
 ## 2024-05-18 - Input Validation State Improvements
 **Learning:** Empty string values in Tkinter `Entry` widgets often cause background threads and pandas to crash deep within the stack (e.g. `FileNotFoundError` followed by `RuntimeError: main thread is not in main loop`) when users click "Run" without configuring inputs.
 **Action:** Always extract and validate the widget state (using `.get().strip()`) synchronously in the main thread before starting background operations, providing explicit `messagebox.showwarning` feedback if inputs are missing.
+
+## 2026-03-27 - Consistent Layout Containers for Results
+**Learning:** Placing conditional result rendering blocks (like `if run_btn:`) outside of their designated layout containers (like `with col2:`) breaks the visual hierarchy. Users are left confused by a blank "Results" column on the right, while the actual output renders at the bottom of the page.
+**Action:** Always wrap result rendering logic (such as success states, status indicators, and downloads) strictly within the designated layout container or column where its corresponding empty state is displayed to maintain a predictable, structured layout.
