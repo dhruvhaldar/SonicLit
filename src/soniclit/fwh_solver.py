@@ -73,14 +73,16 @@ def _precompute_spline_coeffs(interpolation_weight):
     # Optimization: Mathematically factorize the spline coefficients to avoid
     # calculating the cube array (w_cu = w_sq * w) and reduce the total number
     # of arithmetic operations per element.
+    # Refactored: Combining w * inv_6 and extracting negative arrays (e.g., -w_sq + w)
+    # into positive expressions avoids intermediate array negations and allocations.
     w_sq = w * w
     w_sq_minus_1 = w_sq - 1.0
-    inv_6 = 1.0 / 6.0
+    w_inv_6 = w * (1.0 / 6.0)
 
-    c0 = w * w_sq_minus_1 * inv_6
-    c1 = w * (-w_sq + w + 2.0) * 0.5
+    c0 = w_inv_6 * w_sq_minus_1
+    c1 = w * (2.0 + w - w_sq) * 0.5
     c2 = (w - 2.0) * w_sq_minus_1 * 0.5
-    c3 = w * (-w_sq + 3.0 * w - 2.0) * inv_6
+    c3 = w_inv_6 * (3.0 * w - w_sq - 2.0)
 
     return c0, c1, c2, c3
 
