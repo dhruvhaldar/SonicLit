@@ -564,13 +564,14 @@ def cross_spectrum_fft(time1, signal1, time2, signal2, save_output : bool = Fals
     
     # OPTIMIZATION: Calculate magnitude of product as product of magnitudes.
     # |A * conj(B)| = |A| * |conj(B)| = |A| * |B|
-    # This avoids computationally expensive complex multiplication and conjugation.
+    # However, calculating np.abs(A * B) is significantly faster than np.abs(A) * np.abs(B)
+    # as it avoids allocating multiple large magnitude arrays.
     if scale_spectrum == True:
         # OPTIMIZATION: Multiplying arrays by the inverse of a scalar is faster than array division
         inv_scale = 1.0 / (fs1 * len(signal1))
-        cross_power_spectral_density = (np.abs(sig1_fft) * np.abs(sig2_fft)) * inv_scale
+        cross_power_spectral_density = np.abs(sig1_fft * sig2_fft) * inv_scale
     else:
-        cross_power_spectral_density = np.abs(sig1_fft) * np.abs(sig2_fft)
+        cross_power_spectral_density = np.abs(sig1_fft * sig2_fft)
     
     if db_scale == True:
         # OPTIMIZATION: Multiplying a numpy array by the scalar 2.5e9 (inverse of 4e-10)
