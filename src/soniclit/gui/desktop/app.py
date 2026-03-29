@@ -62,17 +62,20 @@ class SonicLitApp:
         obs_frame = ttk.Frame(frame)
         obs_frame.grid(row=row, column=1, sticky='w', padx=5, pady=5)
 
+        ttk.Label(obs_frame, text="X:").grid(row=0, column=0)
         self.fwh_ox = ttk.Entry(obs_frame, width=10)
         self.fwh_ox.insert(0, "0.0")
-        self.fwh_ox.grid(row=0, column=0, padx=(0, 5))
+        self.fwh_ox.grid(row=0, column=1, padx=(0, 10))
 
+        ttk.Label(obs_frame, text="Y:").grid(row=0, column=2)
         self.fwh_oy = ttk.Entry(obs_frame, width=10)
         self.fwh_oy.insert(0, "0.0")
-        self.fwh_oy.grid(row=0, column=1, padx=(0, 5))
+        self.fwh_oy.grid(row=0, column=3, padx=(0, 10))
 
+        ttk.Label(obs_frame, text="Z:").grid(row=0, column=4)
         self.fwh_oz = ttk.Entry(obs_frame, width=10)
         self.fwh_oz.insert(0, "1.0")
-        self.fwh_oz.grid(row=0, column=2)
+        self.fwh_oz.grid(row=0, column=5)
         row += 1
 
         # Time setup
@@ -93,17 +96,20 @@ class SonicLitApp:
         ma_frame = ttk.Frame(frame)
         ma_frame.grid(row=row, column=1, sticky='w', padx=5, pady=5)
 
+        ttk.Label(ma_frame, text="X:").grid(row=0, column=0)
         self.fwh_mx = ttk.Entry(ma_frame, width=10)
         self.fwh_mx.insert(0, "0.0")
-        self.fwh_mx.grid(row=0, column=0, padx=(0, 5))
+        self.fwh_mx.grid(row=0, column=1, padx=(0, 10))
 
+        ttk.Label(ma_frame, text="Y:").grid(row=0, column=2)
         self.fwh_my = ttk.Entry(ma_frame, width=10)
         self.fwh_my.insert(0, "0.0")
-        self.fwh_my.grid(row=0, column=1, padx=(0, 5))
+        self.fwh_my.grid(row=0, column=3, padx=(0, 10))
 
+        ttk.Label(ma_frame, text="Z:").grid(row=0, column=4)
         self.fwh_mz = ttk.Entry(ma_frame, width=10)
         self.fwh_mz.insert(0, "0.0")
-        self.fwh_mz.grid(row=0, column=2)
+        self.fwh_mz.grid(row=0, column=5)
         row += 1
 
         # Temperature

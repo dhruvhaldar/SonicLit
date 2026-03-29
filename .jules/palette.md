@@ -9,3 +9,7 @@
 ## 2025-06-25 - Emoji Icons for Streamlit Buttons
 **Learning:** Adding string emojis to Streamlit `st.button` and `st.download_button` via the `icon` parameter significantly improves visual parsing and cognitive processing for primary action elements without requiring any custom CSS or additional dependencies.
 **Action:** Whenever introducing primary interactive buttons or download actions in Streamlit, assign a relevant emoji or standard icon to the `icon` parameter to enhance visual hierarchy and affordance.
+
+## 2025-06-25 - Explicit Inner Labels for Multi-Component Widgets in Tkinter
+**Learning:** When encapsulating multiple related scalar inputs (like vector components X, Y, Z) into a single `ttk.Frame`, relying solely on the parent frame's label (e.g., "Observer Location (Ox, Oy, Oz)") causes high cognitive load and formatting errors, as users must mentally map the order of inputs to the blank entry boxes.
+**Action:** Always provide explicit, individual inner labels (e.g., `ttk.Label(frame, text="X:")`) immediately preceding each `ttk.Entry` field within the nested grid layout to drastically improve clarity and prevent data entry mistakes.
