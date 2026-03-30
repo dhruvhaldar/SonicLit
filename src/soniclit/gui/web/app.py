@@ -76,15 +76,23 @@ with tab_fwh:
 
         if 'use_sample_fwh' not in st.session_state:
             st.session_state.use_sample_fwh = False
+        if 'fwh_results' not in st.session_state:
+            st.session_state.fwh_results = None
 
         def load_sample_fwh():
             st.session_state.use_sample_fwh = True
+            st.session_state.fwh_results = None
 
         def clear_sample_fwh():
             st.session_state.use_sample_fwh = False
+            st.session_state.fwh_results = None
 
         if uploaded_surf_zip:
             st.session_state.use_sample_fwh = False
+            # Clear results when a new file is uploaded
+            if 'last_uploaded_zip' not in st.session_state or st.session_state.last_uploaded_zip != uploaded_surf_zip.name:
+                st.session_state.fwh_results = None
+                st.session_state.last_uploaded_zip = uploaded_surf_zip.name
 
         file_to_process = uploaded_surf_zip
 
@@ -261,7 +269,7 @@ with tab_fwh:
     with col2:
         st.subheader("Results")
         result_container = st.container()
-        if not run_btn:
+        if not run_btn and st.session_state.fwh_results is None:
             result_container.info(
                 "👋 Configure parameters and run the solver to see results here.")
             result_container.markdown("""
@@ -277,6 +285,7 @@ with tab_fwh:
                     st.error("Please provide surface data.")
                 else:
                     try:
+                        st.session_state.fwh_results = None # Clear previous results
                         st.toast("🚀 Starting FWH Solver...", icon="🚀")
                         # Parse inputs
                         obs_loc = parse_observer_input(obs_loc_str)
@@ -348,28 +357,47 @@ with tab_fwh:
                                     st.toast(
                                         "✅ Simulation Complete!", icon="✅")
 
-                            if prefix is not None:
-                                st.success(msg)
+                                    # Store results in session state
+                                    with open(result_zip_path, "rb") as fp:
+                                        zip_data = fp.read()
 
-                                with open(result_zip_path, "rb") as fp:
-                                    st.download_button(
-                                        label="Download Results (ZIP)",
-                                        data=fp,
-                                        icon="⬇️",
-                                        file_name=f"fwh_results_{prefix}.zip",
-                                        mime="application/zip",
-                                        help="Download a ZIP archive containing the computed acoustic data and preview images."
-                                    )
+                                    # Read PNG images for preview
+                                    png_images = {}
+                                    png_files = [f for f in out_files if f.endswith(".png")]
+                                    for png in png_files:
+                                        with open(os.path.join(out_dir, png), "rb") as f:
+                                            png_images[png] = f.read()
 
-                                # Plot preview if PNGs exist
-                                png_files = [
-                                    f for f in out_files if f.endswith(".png")]
-                                for png in png_files:
-                                    st.image(os.path.join(
-                                        out_dir, png), caption=png)
+                                    st.session_state.fwh_results = {
+                                        'prefix': prefix,
+                                        'msg': msg,
+                                        'zip_data': zip_data,
+                                        'png_images': png_images
+                                    }
 
                     except Exception as e:
                         st.error(f"Error occurred: {str(e)}")
+                        st.session_state.fwh_results = None
+
+    # Render results from session state
+    if st.session_state.fwh_results is not None:
+        with col2:
+            with result_container:
+                res = st.session_state.fwh_results
+                st.success(res['msg'])
+
+                st.download_button(
+                    label="Download Results (ZIP)",
+                    data=res['zip_data'],
+                    icon="⬇️",
+                    file_name=f"fwh_results_{res['prefix']}.zip",
+                    mime="application/zip",
+                    help="Download a ZIP archive containing the computed acoustic data and preview images."
+                )
+
+                # Plot preview if PNGs exist
+                for png_name, png_data in res['png_images'].items():
+                    st.image(png_data, caption=png_name)
 
 
 # --- Spectral Analysis Tab ---

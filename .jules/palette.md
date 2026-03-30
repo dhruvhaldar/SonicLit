@@ -13,3 +13,7 @@
 ## 2025-06-25 - Explicit Inner Labels for Multi-Component Widgets in Tkinter
 **Learning:** When encapsulating multiple related scalar inputs (like vector components X, Y, Z) into a single `ttk.Frame`, relying solely on the parent frame's label (e.g., "Observer Location (Ox, Oy, Oz)") causes high cognitive load and formatting errors, as users must mentally map the order of inputs to the blank entry boxes.
 **Action:** Always provide explicit, individual inner labels (e.g., `ttk.Label(frame, text="X:")`) immediately preceding each `ttk.Entry` field within the nested grid layout to drastically improve clarity and prevent data entry mistakes.
+
+## 2025-06-25 - Ephemeral Interaction States in Streamlit
+**Learning:** In Streamlit, rendering results and dependent interactive elements (like a "Download" button) purely inside an `if st.button('Run'):` block causes a jarring UX failure. The moment the user clicks the rendered "Download" button, Streamlit reruns the script, the 'Run' button evaluates to False, and the results vanish mid-interaction.
+**Action:** Always persist successful operation results (like paths, flags, or data) in `st.session_state` and use this persistent state variable to conditionally render follow-up elements, ensuring they remain visible until explicitly cleared or invalidated.
