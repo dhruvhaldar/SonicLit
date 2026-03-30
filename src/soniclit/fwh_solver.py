@@ -519,9 +519,8 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
         # Computing M2 outside the loop avoids redundant power calculations
         M2 = mach_number[0]*mach_number[0] + mach_number[1]*mach_number[1] + mach_number[2]*mach_number[2]
 
-        beta = np.sqrt(1-M2)
-        # Optimization: Precompute beta squared to avoid redundant power calculations in the observer loop
-        beta_sq = beta * beta
+        # Optimization: Avoid calculating a redundant np.sqrt() and explicit squaring since only the square is used
+        beta_sq = 1.0 - M2
         inv_beta_sq = 1.0 / beta_sq
 
         # Optimization: Read multiple columns at once to avoid redundant I/O and parsing overhead (~50% faster I/O)
@@ -884,9 +883,8 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
     # Computing M2 outside the loop avoids redundant power calculations
     M2 = mach_number[0]*mach_number[0] + mach_number[1]*mach_number[1] + mach_number[2]*mach_number[2]
 
-    beta = np.sqrt(1-M2)
-    # Optimization: Precompute beta squared to avoid redundant power calculations in the observer loop
-    beta_sq = beta * beta
+    # Optimization: Avoid calculating a redundant np.sqrt() and explicit squaring since only the square is used
+    beta_sq = 1.0 - M2
     inv_beta_sq = 1.0 / beta_sq
 
     # Optimization: Read multiple columns at once to avoid redundant I/O and parsing overhead (~50% faster I/O)
