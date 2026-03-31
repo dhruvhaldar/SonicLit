@@ -586,10 +586,12 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
             tau_star = tau-min_tau
 
             # Optimization: Computing scaled tau_star once and using floor
-            # Avoids costly floating point modulo and division operations
+            # Avoids costly floating point modulo and division operations.
+            # Since tau_star_scaled is strictly non-negative (tau - min_tau >= 0),
+            # astype(int) acts as floor without the O(N) allocation of np.floor().
             inv_dt = 1.0 / dt
             tau_star_scaled = tau_star * inv_dt
-            j_star = np.floor(tau_star_scaled).astype(int)
+            j_star = tau_star_scaled.astype(int)
             interpolation_weight = tau_star_scaled - j_star
 
             max_tau = np.max(tau) if len(tau) > 0 else 0
@@ -967,10 +969,12 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
         tau_star = tau - global_min_tau # consistent delay
 
         # Optimization: Computing scaled tau_star once and using floor
-        # Avoids costly floating point modulo and division operations
+        # Avoids costly floating point modulo and division operations.
+        # Since tau_star_scaled is strictly non-negative (tau - min_tau >= 0),
+        # astype(int) acts as floor without the O(N) allocation of np.floor().
         inv_dt = 1.0 / dt
         tau_star_scaled = tau_star * inv_dt
-        j_star = np.floor(tau_star_scaled).astype(int)
+        j_star = tau_star_scaled.astype(int)
         interpolation_weight = tau_star_scaled - j_star
 
         local_max_tau = np.max(tau) if len(tau) > 0 else float('-inf')
