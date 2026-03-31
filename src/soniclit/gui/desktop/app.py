@@ -58,7 +58,7 @@ class SonicLitApp:
         row += 1
 
         # Observer Location
-        ttk.Label(frame, text="Observer Location (Ox, Oy, Oz):").grid(row=row, column=0, sticky='w', padx=5, pady=5)
+        ttk.Label(frame, text="Observer Location (m):").grid(row=row, column=0, sticky='w', padx=5, pady=5)
         obs_frame = ttk.Frame(frame)
         obs_frame.grid(row=row, column=1, sticky='w', padx=5, pady=5)
 
@@ -79,7 +79,7 @@ class SonicLitApp:
         row += 1
 
         # Time setup
-        ttk.Label(frame, text="Time Step (dt):").grid(row=row, column=0, sticky='w', padx=5, pady=5)
+        ttk.Label(frame, text="Time Step (s):").grid(row=row, column=0, sticky='w', padx=5, pady=5)
         self.fwh_dt = ttk.Entry(frame, width=20)
         self.fwh_dt.insert(0, "0.01")
         self.fwh_dt.grid(row=row, column=1, sticky='w', padx=5, pady=5)
@@ -205,6 +205,13 @@ class SonicLitApp:
                 prefix = filename[:-5]
                 self.fwh_surf_file.delete(0, tk.END)
                 self.fwh_surf_file.insert(0, prefix)
+
+                # UX Enhancement: Auto-populate the output prefix to save the user a redundant selection step
+                current_out = self.fwh_out_file.get().strip()
+                if not current_out:
+                    default_out = prefix + "_out"
+                    self.fwh_out_file.delete(0, tk.END)
+                    self.fwh_out_file.insert(0, default_out)
             else:
                 messagebox.showwarning("Warning", "Please select the '0.csv' file to infer prefix.")
 
