@@ -149,7 +149,7 @@ class SonicLitApp:
         row += 1
 
         # Columns
-        ttk.Label(frame, text="Time Column Name:").grid(row=row, column=0, sticky='w', padx=5, pady=5)
+        ttk.Label(frame, text="Time Column Name (s):").grid(row=row, column=0, sticky='w', padx=5, pady=5)
         self.sa_time_col = ttk.Combobox(frame, width=18)
         self.sa_time_col.insert(0, "Time")
         self.sa_time_col.grid(row=row, column=1, sticky='w', padx=5, pady=5)
