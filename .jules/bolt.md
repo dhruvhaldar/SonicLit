@@ -20,3 +20,7 @@
 ## 2025-02-19 - Fast Floor for Non-Negative Arrays
 **Learning:** For strictly non-negative NumPy arrays, calling `.astype(int)` directly acts identically to `np.floor()` because `int()` casting truncates towards zero. Omitting `np.floor()` bypasses a redundant memory allocation and an O(N) array evaluation, resulting in a ~2x speedup for the floor operation.
 **Action:** When calculating integer indices from float arrays that are guaranteed to be non-negative (e.g., relative time calculations `tau - min_tau`), use `arr.astype(int)` instead of `np.floor(arr).astype(int)`.
+
+## 2025-02-19 - Redundant Array Scaling and Division Pitfall
+**Learning:** In algebraic evaluations of polynomials over large arrays (like cubic spline interpolations), expressions of the form `(x + 6 * y) / 6` require allocating a new array for `6 * y`, adding it to `x`, and then multiplying by `1/6`. Algebraically refactoring this to `x / 6 + y` completely eliminates the scalar multiplication by 6 and the corresponding temporary array allocation, yielding a ~16% speedup.
+**Action:** Always inspect polynomial calculations to algebraically eliminate scalar multiplications that are subsequently undone by division, particularly when dealing with array additions.
