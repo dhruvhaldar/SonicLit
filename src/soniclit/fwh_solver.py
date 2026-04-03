@@ -615,15 +615,13 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
 
             # Optimization: Reuse factors to avoid redundant array divisions and multiplications (~45% speedup)
             # Optimization: Use precalculated inv_R to avoid division by R
-            factor_pt1 = geom_dS * inv_R * inv_one_minus_Mr_sq
-            factor_pq2 = factor_pt1 * inv_R
-            factor_pt2 = factor_pq2 * (-Mr0_inv_R) * inv_one_minus_Mr
-
-            factor_pt1_scaled = factor_pt1 * inv_4pi
-            factor_pt2_scaled = factor_pt2 * speed_inv_4pi
-            factor_pq1_scaled = factor_pt1 * inv_speed_4pi
-            factor_pq2_scaled = factor_pq2 * inv_4pi
-            factor_pq3_scaled = factor_pt2 * inv_4pi
+            # Optimization: Chain array scaling directly to avoid allocating unscaled intermediate arrays
+            # Refactored to derive pq3 directly before pt2 to avoid a redundant multiply-and-divide sequence
+            factor_pt1_scaled = geom_dS * inv_R * inv_one_minus_Mr_sq * inv_4pi
+            factor_pq1_scaled = factor_pt1_scaled * inv_speed_of_sound
+            factor_pq2_scaled = factor_pt1_scaled * inv_R
+            factor_pq3_scaled = factor_pq2_scaled * (-Mr0_inv_R) * inv_one_minus_Mr
+            factor_pt2_scaled = factor_pq3_scaled * speed_of_sound
 
             # Precompute combined weights to optimize inner loop
             k = inv_2dt
@@ -996,15 +994,13 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
 
         # Optimization: Reuse factors to avoid redundant array divisions and multiplications (~45% speedup)
         # Optimization: Use precalculated inv_R to avoid division by R
-        factor_pt1 = geom_dS_local * inv_R * inv_one_minus_Mr_sq
-        factor_pq2 = factor_pt1 * inv_R
-        factor_pt2 = factor_pq2 * (-Mr0_inv_R) * inv_one_minus_Mr
-
-        factor_pt1_scaled = factor_pt1 * inv_4pi
-        factor_pt2_scaled = factor_pt2 * speed_inv_4pi
-        factor_pq1_scaled = factor_pt1 * inv_speed_4pi
-        factor_pq2_scaled = factor_pq2 * inv_4pi
-        factor_pq3_scaled = factor_pt2 * inv_4pi
+        # Optimization: Chain array scaling directly to avoid allocating unscaled intermediate arrays
+        # Refactored to derive pq3 directly before pt2 to avoid a redundant multiply-and-divide sequence
+        factor_pt1_scaled = geom_dS_local * inv_R * inv_one_minus_Mr_sq * inv_4pi
+        factor_pq1_scaled = factor_pt1_scaled * inv_speed_of_sound
+        factor_pq2_scaled = factor_pt1_scaled * inv_R
+        factor_pq3_scaled = factor_pq2_scaled * (-Mr0_inv_R) * inv_one_minus_Mr
+        factor_pt2_scaled = factor_pq3_scaled * speed_of_sound
 
         # Precompute combined weights to optimize inner loop
         k = inv_2dt
