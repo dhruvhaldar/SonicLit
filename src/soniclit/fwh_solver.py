@@ -46,14 +46,16 @@ def cubic_spline(interpolation_weight, f0, f1, f2, f3):
     # C6 = -f0 + 6f1 - 3f2 - 2f3 = 3(f1 - f3) - A6
     C6 = 3.0 * f1_minus_f3 - A6
 
-    # Horner's method evaluation: out = (w * (C6 + w * (B2_3 + w * A6)) + 6f2) / 6
+    # Horner's method evaluation: out = (w * (C6 + w * (B2_3 + w * A6))) / 6 + f2
+    # OPTIMIZATION: Refactoring (term + 6.0*f2) / 6.0 to (term / 6.0) + f2 avoids the
+    # redundant scalar multiplication and temporary array allocation for 6.0*f2.
     term = w * A6
     term += B2_3
     term *= w
     term += C6
     term *= w
-    term += 6.0 * f2
     term *= (1.0/6.0)
+    term += f2
 
     return term
 
