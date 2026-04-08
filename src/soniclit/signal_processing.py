@@ -142,11 +142,11 @@ def fft_spectrum(time, signal, save_output : bool = False, out_dir : str = "", d
         power_spectral_density *= inv_df
     
     if db_scale == True:
-        # OPTIMIZATION: Multiplying a numpy array by the scalar 2.5e9 (inverse of 4e-10)
-        # is faster than array division, yielding a measurable performance improvement.
-        power_spectral_density *= 2.5e9
+        # OPTIMIZATION: Extracting the scalar constant out of the logarithm as a pre-computed addition
+        # (10 * log10(arr * scalar) = 10 * log10(arr) + 10 * log10(scalar)) avoids an O(N) array multiplication.
         np.log10(power_spectral_density, out=power_spectral_density)
         power_spectral_density *= 10.0
+        power_spectral_density += 93.97940008672037 # 10.0 * np.log10(2.5e9)
         #return freq, df, power_spectral_density
     
     if save_output == True:
@@ -233,11 +233,11 @@ def welch_spectrum(time, signal, save_output : bool = False, out_dir : str = "",
     
     
     if db_scale == True:
-        # OPTIMIZATION: Multiplying a numpy array by the scalar 2.5e9 (inverse of 4e-10)
-        # is faster than array division, yielding a measurable performance improvement.
-        power_spectral_density *= 2.5e9
+        # OPTIMIZATION: Extracting the scalar constant out of the logarithm as a pre-computed addition
+        # avoids an O(N) array multiplication.
         np.log10(power_spectral_density, out=power_spectral_density)
         power_spectral_density *= 10.0
+        power_spectral_density += 93.97940008672037 # 10.0 * np.log10(2.5e9)
     
     if save_output == True:
         os.makedirs(out_dir, exist_ok=True)
@@ -468,11 +468,11 @@ def cross_spectrum(time1, signal1, time2, signal2, save_output : bool = False, o
                       window=window, return_onesided=True, detrend='constant', scaling='spectrum', axis=-1)
     
     if db_scale == True:
-        # OPTIMIZATION: Multiplying a numpy array by the scalar 2.5e9 (inverse of 4e-10)
-        # is faster than array division, yielding a measurable performance improvement.
-        cross_power_spectral_density *= 2.5e9
+        # OPTIMIZATION: Extracting the scalar constant out of the logarithm as a pre-computed addition
+        # avoids an O(N) array multiplication.
         np.log10(cross_power_spectral_density, out=cross_power_spectral_density)
         cross_power_spectral_density *= 10.0
+        cross_power_spectral_density += 93.97940008672037 # 10.0 * np.log10(2.5e9)
     
     if save_output == True:
         os.makedirs(out_dir, exist_ok=True)
@@ -574,11 +574,11 @@ def cross_spectrum_fft(time1, signal1, time2, signal2, save_output : bool = Fals
         cross_power_spectral_density = np.abs(sig1_fft * sig2_fft)
     
     if db_scale == True:
-        # OPTIMIZATION: Multiplying a numpy array by the scalar 2.5e9 (inverse of 4e-10)
-        # is faster than array division, yielding a measurable performance improvement.
-        cross_power_spectral_density *= 2.5e9
+        # OPTIMIZATION: Extracting the scalar constant out of the logarithm as a pre-computed addition
+        # avoids an O(N) array multiplication.
         np.log10(cross_power_spectral_density, out=cross_power_spectral_density)
         cross_power_spectral_density *= 10.0
+        cross_power_spectral_density += 93.97940008672037 # 10.0 * np.log10(2.5e9)
         
     if save_output == True:
         os.makedirs(out_dir, exist_ok=True)
