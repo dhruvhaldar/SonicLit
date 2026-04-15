@@ -28,3 +28,7 @@
 ## 2025-02-19 - Fast Base-10 Logarithm Optimization
 **Learning:** In NumPy, computing the base-10 logarithm of a large array using `np.log10(arr)` is significantly slower (~35-50%) than using the natural logarithm `np.log(arr)` and multiplying by the change-of-base constant `10 / np.log(10) ≈ 4.342944819032518`.
 **Action:** When computing decibel scale conversions or evaluating base-10 logarithms on NumPy arrays (e.g. `10 * np.log10(x)`), replace it with `np.log(x) * 4.342944819032518` for a measurable speedup without losing precision.
+
+## 2025-02-19 - Cumulative Sum List Comprehension Anti-Pattern
+**Learning:** Using a list comprehension with a growing slice sum, such as `[sum(arr[:i]) for i in range(len(arr))]`, exhibits $O(N^2)$ time complexity and becomes a severe bottleneck for large arrays or high process counts.
+**Action:** Always replace this pattern with NumPy's vectorized `np.cumsum()` (e.g., `np.concatenate(([0], np.cumsum(arr)[:-1]))` or pre-allocating an array and slicing `out[1:] = np.cumsum(arr[:-1])`), which executes in $O(N)$ time at the C-level for a massive performance improvement.

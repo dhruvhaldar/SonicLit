@@ -400,7 +400,10 @@ def calculate_source_terms_parallel(surf_file : str, preprocessed_data, ambient_
     ave, res = divmod(preprocessed_data[:,0].size, nproc)
     c = [ave + 1 if f < res else ave for f in range(nproc)]
     c = np.array(c)
-    index0 = [sum(c[:i]) for i in range(len(c))]
+    # Optimization: Replaced O(N^2) list comprehension sum with O(N) vectorized np.cumsum
+    index0 = np.zeros(len(c), dtype=int)
+    if len(c) > 1:
+        index0[1:] = np.cumsum(c[:-1])
     
     preS = [preprocessed_data[index0[i]:index0[i]+c[i],:] for i in range(nproc)]
     surfS = [surface_data[index0[i]:index0[i]+c[i],:] for i in range(nproc)]
@@ -900,7 +903,10 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
     n_elements = geom_y.shape[0]
     ave, res = divmod(n_elements, nproc)
     counts = [ave + 1 if f < res else ave for f in range(nproc)]
-    offsets = [sum(counts[:i]) for i in range(nproc)]
+    # Optimization: Replaced O(N^2) list comprehension sum with O(N) vectorized np.cumsum
+    offsets = np.zeros(nproc, dtype=int)
+    if nproc > 1:
+        offsets[1:] = np.cumsum(counts[:-1])
 
     my_start = offsets[rank]
     my_end = my_start + counts[rank]
