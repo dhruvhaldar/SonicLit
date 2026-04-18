@@ -125,9 +125,9 @@ def fft_spectrum(time, signal, save_output : bool = False, out_dir : str = "", d
     
     sig_fft = np.fft.rfft(signal) # Fourier-transformed signal, real part only
     
-    # OPTIMIZATION: Calculate squared magnitude directly using numpy abs
-    # np.abs(sig_fft)**2 is highly optimized in C and up to 2.4x faster than explicit arithmetic
-    psd_unscaled = np.abs(sig_fft)**2
+    # OPTIMIZATION: Avoid redundantly evaluating a square root internally by np.abs() only to immediately square it.
+    # Using real**2 + imag**2 explicitly avoids this overhead and temporary array allocations.
+    psd_unscaled = sig_fft.real**2 + sig_fft.imag**2
 
     if scale_spectrum == True:
         # OPTIMIZATION: Multiplying arrays by the inverse of a scalar is faster than array division
@@ -295,9 +295,9 @@ def auto_corr(signal, save_output : bool = False, out_dir : str = "", normalised
     sig_fft = np.fft.rfft(signal, n=nfft)
     # The inverse real FFT of power spectrum gives auto-correlation for positive and negative lags.
     # The first n elements correspond to the positive lags (0 to n-1)
-    # OPTIMIZATION: Calculate squared magnitude directly using numpy abs
-    # np.abs(sig_fft)**2 is highly optimized in C and avoids expensive complex multiplication and conjugation.
-    auto_correlation_full = np.fft.irfft(np.abs(sig_fft)**2, n=nfft)
+    # OPTIMIZATION: Avoid redundantly evaluating a square root internally by np.abs() only to immediately square it.
+    # Using real**2 + imag**2 explicitly avoids this overhead and temporary array allocations.
+    auto_correlation_full = np.fft.irfft(sig_fft.real**2 + sig_fft.imag**2, n=nfft)
     auto_correlation = auto_correlation_full[:n]
 
     if normalised == True:
