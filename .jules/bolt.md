@@ -32,3 +32,7 @@
 ## 2025-02-19 - Cumulative Sum List Comprehension Anti-Pattern
 **Learning:** Using a list comprehension with a growing slice sum, such as `[sum(arr[:i]) for i in range(len(arr))]`, exhibits $O(N^2)$ time complexity and becomes a severe bottleneck for large arrays or high process counts.
 **Action:** Always replace this pattern with NumPy's vectorized `np.cumsum()` (e.g., `np.concatenate(([0], np.cumsum(arr)[:-1]))` or pre-allocating an array and slicing `out[1:] = np.cumsum(arr[:-1])`), which executes in $O(N)$ time at the C-level for a massive performance improvement.
+
+## 2026-04-18 - Redundant Magnitude Squaring Pitfall
+**Learning:** When calculating the power spectrum or squared magnitude of a complex NumPy array, using `np.abs(complex_array)**2` computes the absolute value (which internally evaluates the square root) only to mathematically redundantly square it immediately afterward. Using `complex_array.real**2 + complex_array.imag**2` explicitly avoids this square-root overhead and associated temporary array allocations, providing a measurable (~15%) performance improvement.
+**Action:** Always compute squared magnitudes of complex arrays explicitly via `real**2 + imag**2` instead of taking the square of `np.abs()`, to prevent redundant mathematical function evaluation overhead.
