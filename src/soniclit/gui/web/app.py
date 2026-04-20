@@ -458,46 +458,51 @@ with tab_spectral:
                     uploaded_sig = None
                 file_to_process_spectral = None
             else:
-                df = pd.read_csv(file_to_process_spectral)
+                try:
+                    df = pd.read_csv(file_to_process_spectral)
 
-                with st.expander("Preview Uploaded Data"):
-                    st.dataframe(df.head(), use_container_width=True)
+                    with st.expander("Preview Uploaded Data"):
+                        st.dataframe(df.head(), use_container_width=True)
 
-                st.caption(
-                    f"✅ Loaded **{len(df)}** rows, **{len(df.columns)}** columns.")
+                    st.caption(
+                        f"✅ Loaded **{len(df)}** rows, **{len(df.columns)}** columns.")
 
-                # Smart default selection
-                time_candidates = ["time", "t", "seconds", "s"]
-                time_idx = get_column_index(df.columns, time_candidates)
-                time_col = st.selectbox("Select Time Column", df.columns, index=time_idx,
-                                        help="Select the column containing time data (must be in seconds).")
+                    # Smart default selection
+                    time_candidates = ["time", "t", "seconds", "s"]
+                    time_idx = get_column_index(df.columns, time_candidates)
+                    time_col = st.selectbox("Select Time Column", df.columns, index=time_idx,
+                                            help="Select the column containing time data (must be in seconds).")
 
-                sig_candidates = ["pressure", "p",
-                                  "signal", "velocity", "u", "amplitude"]
-                available_cols = [c for c in df.columns if c != time_col]
-                # Recalculate index for the filtered list
-                sig_idx = get_column_index(available_cols, sig_candidates)
+                    sig_candidates = ["pressure", "p",
+                                      "signal", "velocity", "u", "amplitude"]
+                    available_cols = [c for c in df.columns if c != time_col]
+                    # Recalculate index for the filtered list
+                    sig_idx = get_column_index(available_cols, sig_candidates)
 
-                if available_cols:
-                    sig_col = st.selectbox("Select Signal Column", available_cols, index=sig_idx,
-                                           help="Select the column containing the measurement data to analyze (e.g., pressure, velocity).")
-                else:
-                    st.warning(
-                        "No signal columns available (the file only has 1 column). Please upload a file with at least two columns.")
+                    if available_cols:
+                        sig_col = st.selectbox("Select Signal Column", available_cols, index=sig_idx,
+                                               help="Select the column containing the measurement data to analyze (e.g., pressure, velocity).")
+                    else:
+                        st.warning(
+                            "No signal columns available (the file only has 1 column). Please upload a file with at least two columns.")
+                        sig_col = None
+
+                    method = st.selectbox("Method", [
+                                          "FFT", "Welch"], help="Choose 'FFT' for standard spectrum or 'Welch' for smoothed periodogram.")
+
+                    if method == "Welch":
+                        col_w1, col_w2 = st.columns(2)
+                        with col_w1:
+                            chunks = st.number_input("Chunks", value=4, step=1, min_value=1, max_value=1000,
+                                                     help="Number of segments to split the signal into (higher = smoother but lower frequency resolution).")
+                            chunks = min(chunks, 1000)
+                        with col_w2:
+                            overlap = st.slider("Overlap (Fraction)", min_value=0.0, max_value=0.99, value=0.5,
+                                                step=0.05, help="Fraction of overlap between segments (typically 0.5 or 50%).")
+                except Exception as e:
+                    st.error(f"Failed to parse CSV file: {e}")
+                    df = None
                     sig_col = None
-
-                method = st.selectbox("Method", [
-                                      "FFT", "Welch"], help="Choose 'FFT' for standard spectrum or 'Welch' for smoothed periodogram.")
-
-                if method == "Welch":
-                    col_w1, col_w2 = st.columns(2)
-                    with col_w1:
-                        chunks = st.number_input("Chunks", value=4, step=1, min_value=1, max_value=1000,
-                                                 help="Number of segments to split the signal into (higher = smoother but lower frequency resolution).")
-                        chunks = min(chunks, 1000)
-                    with col_w2:
-                        overlap = st.slider("Overlap (Fraction)", min_value=0.0, max_value=0.99, value=0.5,
-                                            step=0.05, help="Fraction of overlap between segments (typically 0.5 or 50%).")
 
     with col2:
         if file_to_process_spectral and sig_col is not None:
