@@ -17,3 +17,7 @@
 ## 2025-06-25 - Ephemeral Interaction States in Streamlit
 **Learning:** In Streamlit, rendering results and dependent interactive elements (like a "Download" button) purely inside an `if st.button('Run'):` block causes a jarring UX failure. The moment the user clicks the rendered "Download" button, Streamlit reruns the script, the 'Run' button evaluates to False, and the results vanish mid-interaction.
 **Action:** Always persist successful operation results (like paths, flags, or data) in `st.session_state` and use this persistent state variable to conditionally render follow-up elements, ensuring they remain visible until explicitly cleared or invalidated.
+
+## 2025-06-25 - Error Handling for Streamlit File Uploads
+**Learning:** In Streamlit applications, failing to wrap data parsing operations (like `pd.read_csv`) in `try...except` blocks causes malformed or invalid file uploads to crash the entire application with an intimidating, screen-filling Pandas stack trace.
+**Action:** Always wrap file parsing operations in a `try...except` block and catch potential exceptions. Display a user-friendly, actionable error message using `st.error` to instruct the user on how to fix their input, ensuring the rest of the application remains stable.
