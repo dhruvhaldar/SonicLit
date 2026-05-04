@@ -244,6 +244,11 @@ with tab_fwh:
 
         temp_val = st.number_input("Temperature (K)", value=298.0,
                                    help="Ambient temperature in Kelvin (affects speed of sound).")
+
+        # Calculate and display speed of sound based on temperature
+        speed_of_sound = 20.05 * np.sqrt(temp_val)
+        st.caption(f"🔊 Speed of Sound: **{speed_of_sound:.1f} m/s**")
+
         perm_val = st.checkbox("Permeable Surface", value=False,
                                help="Enable if using a permeable integration surface.")
 
@@ -487,8 +492,8 @@ with tab_spectral:
                             "No signal columns available (the file only has 1 column). Please upload a file with at least two columns.")
                         sig_col = None
 
-                    method = st.selectbox("Method", [
-                                          "FFT", "Welch"], help="Choose 'FFT' for standard spectrum or 'Welch' for smoothed periodogram.")
+                    method = st.radio("Method", ["FFT", "Welch"], horizontal=True,
+                                      help="Choose 'FFT' for standard spectrum or 'Welch' for smoothed periodogram.")
 
                     if method == "Welch":
                         col_w1, col_w2 = st.columns(2)
@@ -517,9 +522,9 @@ with tab_spectral:
                 # Display metrics
                 m1, m2, m3, m4 = st.columns(4)
                 m1.metric(
-                    "Sampling Rate", f"{fs} Hz", help="Number of samples recorded per second. Determines the maximum resolvable frequency.")
+                    "Sampling Rate", f"{fs:,.0f} Hz", help="Number of samples recorded per second. Determines the maximum resolvable frequency.")
                 m2.metric(
-                    "Nyquist Freq", f"{nyquist} Hz", help="Maximum frequency that can be accurately represented without aliasing (half of the sampling rate).")
+                    "Nyquist Freq", f"{nyquist:,.0f} Hz", help="Maximum frequency that can be accurately represented without aliasing (half of the sampling rate).")
 
                 with st.spinner("Computing spectrum..."):
                     fig, ax = plt.subplots()
@@ -540,7 +545,7 @@ with tab_spectral:
                     # UX Enhancement: Explicitly surface key data points to improve accessibility and reduce cognitive load
                     peak_idx = np.argmax(psd)
                     peak_freq = freq[peak_idx]
-                    m4.metric("Peak Frequency", f"{peak_freq:.1f} Hz",
+                    m4.metric("Peak Frequency", f"{peak_freq:,.1f} Hz",
                               help="The frequency with the highest spectral power.")
 
                     ax.set_xlabel("Frequency (Hz)")
