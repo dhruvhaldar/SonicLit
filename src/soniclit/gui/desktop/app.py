@@ -282,6 +282,7 @@ class SonicLitApp:
 
         self.fwh_run_btn.config(state=tk.DISABLED, text="Running...")
         self.root.update()
+        self.root.config(cursor="watch")
         threading.Thread(target=self._run_fwh_thread, args=(surf_file, out_file, obs_loc, dt, steps, ma, perm, temp), daemon=True).start()
 
     def _run_fwh_thread(self, surf_file, out_file, obs_loc, dt, steps, ma, perm, temp):
@@ -315,6 +316,7 @@ class SonicLitApp:
             self.root.after(0, messagebox.showerror, "Error", str(e))
         finally:
             self.root.after(0, lambda: self.fwh_run_btn.config(state=tk.NORMAL, text="Run FWH Solver"))
+            self.root.after(0, lambda: self.root.config(cursor=""))
 
     def plot_spectrum(self):
         filename = self.sa_file.get().strip()
@@ -331,6 +333,7 @@ class SonicLitApp:
 
         self.sa_plot_btn.config(state=tk.DISABLED, text="Plotting...")
         self.root.update()
+        self.root.config(cursor="watch")
         threading.Thread(target=self._plot_spectrum_thread, args=(filename, time_col, sig_col, method), daemon=True).start()
 
     def _plot_spectrum_thread(self, filename, time_col, sig_col, method):
@@ -366,6 +369,7 @@ class SonicLitApp:
             self.root.after(0, messagebox.showerror, "Error", str(e))
         finally:
             self.root.after(0, lambda: self.sa_plot_btn.config(state=tk.NORMAL, text="Plot Spectrum"))
+            self.root.after(0, lambda: self.root.config(cursor=""))
 
 if __name__ == "__main__":
     root = tk.Tk()
