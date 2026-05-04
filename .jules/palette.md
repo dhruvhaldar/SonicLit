@@ -24,3 +24,19 @@
 ## 2026-05-04 - Tkinter Loading State Cursor Feedback
 **Learning:** During long-running background thread operations in Tkinter desktop GUIs, simply disabling buttons is sometimes insufficient feedback if the application appears frozen to the user.
 **Action:** Always provide explicit, immediate visual feedback for long-running operations by changing the root cursor to a waiting state (e.g., `self.root.config(cursor="watch")`) before launching the thread, and strictly ensure it is reset back to normal (`self.root.config(cursor="")`) within a `finally` block using `self.root.after`.
+
+## 2026-05-04 - Streamlit Selectbox vs Radio for Binary Choices
+**Learning:** Using an `st.selectbox` for a simple binary choice (e.g., "FFT" vs "Welch") hides the available options and forces the user to make two clicks (open dropdown, select item).
+**Action:** Always prefer a horizontal `st.radio` (`horizontal=True`) over a selectbox when there are only two mutually exclusive options, making the choices immediately visible and reducing interaction cost to a single click.
+
+## 2026-05-04 - Formatting Large Numbers in Streamlit Metrics
+**Learning:** Displaying raw large numbers (e.g., 44100) in `st.metric` components makes them difficult to scan and comprehend quickly, increasing cognitive load.
+**Action:** Always format large numerical outputs, such as frequencies or sample rates, with thousands separators (e.g., `f"{value:,.0f}"` or `f"{value:,.1f}"`) to improve scannability and professional polish.
+
+## 2026-05-04 - Exposing Abstract Calculations in Streamlit
+**Learning:** Abstract inputs (like "Ambient Temperature") that drive critical physics calculations (like "Speed of Sound") leave users guessing about the exact values being used under the hood until the simulation runs.
+**Action:** Surface derived calculations instantly in the UI. When a user changes an abstract input, calculate the dependent physical property and display it immediately below the input using an `st.caption`. This provides instant, helpful feedback and builds trust in the simulation.
+
+## 2026-05-04 - Playwright Selectors for Streamlit Widgets
+**Learning:** Streamlit does not map Python widget `key` arguments to DOM element attributes (like `key="btn_load"`). Attempting to use CSS locators like `page.locator("button[key='btn_load']")` will silently fail and timeout in Playwright.
+**Action:** When testing Streamlit UIs with Playwright, always locate interactive elements using user-facing attributes like role and exact text (e.g., `page.get_by_role("button", name="📦 Load Built-in Sample Data")`). If elements are duplicated across tabs, use `.nth()` or scope the search to the active tab container.
