@@ -72,7 +72,7 @@ with tab_fwh:
         # Since FWH requires a set of files (0.csv, 1.csv, Avg.csv, etc.)
         # We will ask user to upload a ZIP file containing these.
         uploaded_surf_zip = st.file_uploader(
-            "Upload Surface Data (ZIP)", type="zip", help="Zip file should contain surface CSVs (Avg.csv, 0.csv, 1.csv...)")
+            "Upload Surface Data (ZIP)", type="zip", help="Zip file should contain surface CSVs (Avg.csv, 0.csv, 1.csv...)", key="fwh_zip_uploader")
 
         if 'use_sample_fwh' not in st.session_state:
             st.session_state.use_sample_fwh = False
@@ -408,7 +408,7 @@ with tab_spectral:
 
     with col1:
         uploaded_sig = st.file_uploader(
-            "Upload Signal CSV", type="csv", help="CSV file with time and signal columns.")
+            "Upload Signal CSV", type="csv", help="CSV file with time and signal columns.", key="sa_csv_uploader")
 
         if 'use_sample_spectral' not in st.session_state:
             st.session_state.use_sample_spectral = False

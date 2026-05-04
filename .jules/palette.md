@@ -21,3 +21,6 @@
 ## 2025-06-25 - Graceful Error Handling for Streamlit File Parsing
 **Learning:** In Streamlit applications, failing to wrap file parsing operations (like `pd.read_csv`) in `try...except` blocks causes malformed or invalid uploads to crash the application, displaying a full, intimidating stack trace directly to the end user.
 **Action:** Always wrap user-provided file parsing operations in `try...except` blocks. Display user-friendly, actionable error messages using `st.error` and ensure downstream dependent variables (like `df` or selected columns) are safely reset or bypassed to prevent cascading errors.
+## 2026-05-04 - Tkinter Loading State Cursor Feedback
+**Learning:** During long-running background thread operations in Tkinter desktop GUIs, simply disabling buttons is sometimes insufficient feedback if the application appears frozen to the user.
+**Action:** Always provide explicit, immediate visual feedback for long-running operations by changing the root cursor to a waiting state (e.g., `self.root.config(cursor="watch")`) before launching the thread, and strictly ensure it is reset back to normal (`self.root.config(cursor="")`) within a `finally` block using `self.root.after`.
