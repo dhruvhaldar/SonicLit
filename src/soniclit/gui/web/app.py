@@ -242,7 +242,7 @@ with tab_fwh:
                 "Invalid format. Use Python list syntax, e.g. [0.1, 0, 0]")
             ma_valid = False
 
-        temp_val = st.number_input("Temperature (K)", value=298.0,
+        temp_val = st.number_input("Temperature (K)", value=298.0, min_value=0.0,
                                    help="Ambient temperature in Kelvin (affects speed of sound).")
 
         # Calculate and display speed of sound based on temperature

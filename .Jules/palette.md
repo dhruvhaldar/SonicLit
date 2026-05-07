@@ -113,3 +113,6 @@
 ## 2026-03-27 - Consistent Layout Containers for Results
 **Learning:** Placing conditional result rendering blocks (like `if run_btn:`) outside of their designated layout containers (like `with col2:`) breaks the visual hierarchy. Users are left confused by a blank "Results" column on the right, while the actual output renders at the bottom of the page.
 **Action:** Always wrap result rendering logic (such as success states, status indicators, and downloads) strictly within the designated layout container or column where its corresponding empty state is displayed to maintain a predictable, structured layout.
+## 2026-05-06 - Streamlit Number Input Bounds
+**Learning:** Without explicit lower or upper limits in Streamlit `st.number_input` widgets, users can enter physically impossible values (like a negative temperature in Kelvin). This can cause backend computations (such as a square root calculation `np.sqrt`) to crash, showing a stack trace and ruining the UX.
+**Action:** Always add sensible physical bounds (like `min_value=0.0` for Kelvin) to `st.number_input` widgets to prevent unhandled math errors downstream and provide immediate inline feedback to the user.
