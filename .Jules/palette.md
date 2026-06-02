@@ -116,3 +116,7 @@
 ## 2026-05-06 - Streamlit Number Input Bounds
 **Learning:** Without explicit lower or upper limits in Streamlit `st.number_input` widgets, users can enter physically impossible values (like a negative temperature in Kelvin). This can cause backend computations (such as a square root calculation `np.sqrt`) to crash, showing a stack trace and ruining the UX.
 **Action:** Always add sensible physical bounds (like `min_value=0.0` for Kelvin) to `st.number_input` widgets to prevent unhandled math errors downstream and provide immediate inline feedback to the user.
+
+## 2026-06-02 - Testing Streamlit Spinbuttons
+**Learning:** When using Playwright to test Streamlit `st.number_input` widgets, locating them by label using `page.get_by_label()` can fail with a strict mode violation because the label resolves to both the input field and its associated help tooltip button.
+**Action:** Always locate `st.number_input` widgets using their specific ARIA role combined with the label text, such as `page.get_by_role("spinbutton", name="Time Step (s)")`, to uniquely identify the input field and avoid test flakiness.

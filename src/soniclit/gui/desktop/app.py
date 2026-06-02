@@ -264,7 +264,12 @@ class SonicLitApp:
             obs_loc = [[ox, oy, oz]]
 
             dt = float(self.fwh_dt.get())
+            if dt <= 0:
+                raise ValueError("Time step (dt) must be strictly positive.")
+
             steps = int(self.fwh_steps.get())
+            if steps <= 0:
+                raise ValueError("Number of steps must be strictly positive.")
 
             mx = float(self.fwh_mx.get())
             my = float(self.fwh_my.get())
@@ -273,6 +278,8 @@ class SonicLitApp:
 
             perm = self.fwh_perm_var.get()
             temp = float(self.fwh_temp.get())
+            if temp < 0:
+                raise ValueError("Temperature must be non-negative (Kelvin).")
         except ValueError as e:
             messagebox.showerror("Input Error", f"Please ensure all numeric fields contain valid numbers.\n\nDetails: {e}")
             return
@@ -327,9 +334,13 @@ class SonicLitApp:
             messagebox.showerror("File Not Found", f"The file '{filename}' does not exist.")
             return
 
-        time_col = self.sa_time_col.get()
-        sig_col = self.sa_sig_col.get()
+        time_col = self.sa_time_col.get().strip()
+        sig_col = self.sa_sig_col.get().strip()
         method = self.sa_method.get()
+
+        if not time_col or not sig_col:
+            messagebox.showwarning("Input Required", "Please select or enter both Time and Signal column names.")
+            return
 
         self.sa_plot_btn.config(state=tk.DISABLED, text="Plotting...")
         self.root.update()
