@@ -196,10 +196,13 @@ with tab_fwh:
                 "Invalid format. Use Python list syntax `[[x,y,z]]` OR CSV `x, y, z`")
             obs_valid = False
 
-        dt_val = st.number_input(
-            "Time Step (s)", value=0.01, min_value=0.0001, format="%.4f", help="Simulation time step in seconds.")
-        steps_val = st.number_input("Number of Steps", value=10, step=1, min_value=1,
-                                    max_value=100000, help="Total number of time steps to process.")
+        col_t1, col_t2 = st.columns(2)
+        with col_t1:
+            dt_val = st.number_input(
+                "Time Step (s)", value=0.01, min_value=0.0001, format="%.4f", help="Simulation time step in seconds.")
+        with col_t2:
+            steps_val = st.number_input("Number of Steps", value=10, step=1, min_value=1,
+                                        max_value=100000, help="Total number of time steps to process.")
         # Security: Enforce backend limit to prevent DoS
         steps_val = min(steps_val, 100000)
 
@@ -475,8 +478,10 @@ with tab_spectral:
                     # Smart default selection
                     time_candidates = ["time", "t", "seconds", "s"]
                     time_idx = get_column_index(df.columns, time_candidates)
-                    time_col = st.selectbox("Select Time Column", df.columns, index=time_idx,
-                                            help="Select the column containing time data (must be in seconds).")
+                    col_s1, col_s2 = st.columns(2)
+                    with col_s1:
+                        time_col = st.selectbox("Select Time Column", df.columns, index=time_idx,
+                                                help="Select the column containing time data (must be in seconds).")
 
                     sig_candidates = ["pressure", "p",
                                       "signal", "velocity", "u", "amplitude"]
@@ -484,13 +489,14 @@ with tab_spectral:
                     # Recalculate index for the filtered list
                     sig_idx = get_column_index(available_cols, sig_candidates)
 
-                    if available_cols:
-                        sig_col = st.selectbox("Select Signal Column", available_cols, index=sig_idx,
-                                               help="Select the column containing the measurement data to analyze (e.g., pressure, velocity).")
-                    else:
-                        st.warning(
-                            "No signal columns available (the file only has 1 column). Please upload a file with at least two columns.")
-                        sig_col = None
+                    with col_s2:
+                        if available_cols:
+                            sig_col = st.selectbox("Select Signal Column", available_cols, index=sig_idx,
+                                                   help="Select the column containing the measurement data to analyze (e.g., pressure, velocity).")
+                        else:
+                            st.warning(
+                                "No signal columns available (the file only has 1 column). Please upload a file with at least two columns.")
+                            sig_col = None
 
                     method = st.radio("Method", ["FFT", "Welch"], horizontal=True,
                                       help="Choose 'FFT' for standard spectrum or 'Welch' for smoothed periodogram.")
