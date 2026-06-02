@@ -197,7 +197,7 @@ with tab_fwh:
             obs_valid = False
 
         dt_val = st.number_input(
-            "Time Step (s)", value=0.01, format="%.4f", help="Simulation time step in seconds.")
+            "Time Step (s)", value=0.01, min_value=0.0001, format="%.4f", help="Simulation time step in seconds.")
         steps_val = st.number_input("Number of Steps", value=10, step=1, min_value=1,
                                     max_value=100000, help="Total number of time steps to process.")
         # Security: Enforce backend limit to prevent DoS
