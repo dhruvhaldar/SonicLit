@@ -40,3 +40,7 @@
 ## 2026-05-04 - Playwright Selectors for Streamlit Widgets
 **Learning:** Streamlit does not map Python widget `key` arguments to DOM element attributes (like `key="btn_load"`). Attempting to use CSS locators like `page.locator("button[key='btn_load']")` will silently fail and timeout in Playwright.
 **Action:** When testing Streamlit UIs with Playwright, always locate interactive elements using user-facing attributes like role and exact text (e.g., `page.get_by_role("button", name="📦 Load Built-in Sample Data")`). If elements are duplicated across tabs, use `.nth()` or scope the search to the active tab container.
+
+## 2024-06-03 - Form Layout Density Improvement
+**Learning:** In data-dense Streamlit applications with many scalar configuration inputs (e.g., FWH Solvers or Spectral Analysis parameter forms), stacking all inputs vertically creates excessive scrolling and reduces cognitive parsing. Explicitly grouping related parameters (like Time Step/Number of Steps, or Time Column/Signal Column selection) into horizontal `st.columns` blocks significantly improves the form's density and usability.
+**Action:** When working on Streamlit forms, evaluate if sequential scalar inputs or selectboxes share a logical relationship (e.g., simulation temporal parameters or axis data selection). If so, wrap them in `st.columns` to reduce vertical height and clearly convey their relationship to the user.
