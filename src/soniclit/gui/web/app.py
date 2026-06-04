@@ -250,7 +250,8 @@ with tab_fwh:
 
         # Calculate and display speed of sound based on temperature
         speed_of_sound = 20.05 * np.sqrt(temp_val)
-        st.caption(f"🔊 Speed of Sound: **{speed_of_sound:.1f} m/s**")
+        temp_celsius = temp_val - 273.15
+        st.caption(f"🌡️ **{temp_celsius:.1f} °C**  |  🔊 Speed of Sound: **{speed_of_sound:.1f} m/s**")
 
         perm_val = st.checkbox("Permeable Surface", value=False,
                                help="Enable if using a permeable integration surface.")
@@ -398,6 +399,7 @@ with tab_fwh:
                     label="Download Results (ZIP)",
                     data=res['zip_data'],
                     icon="⬇️",
+                    type="primary",
                     file_name=f"fwh_results_{res['prefix']}.zip",
                     mime="application/zip",
                     help="Download a ZIP archive containing the computed acoustic data and preview images."
@@ -508,8 +510,8 @@ with tab_spectral:
                                                      help="Number of segments to split the signal into (higher = smoother but lower frequency resolution).")
                             chunks = min(chunks, 1000)
                         with col_w2:
-                            overlap = st.slider("Overlap (Fraction)", min_value=0.0, max_value=0.99, value=0.5,
-                                                step=0.05, help="Fraction of overlap between segments (typically 0.5 or 50%).")
+                            overlap = st.slider("Overlap (%)", min_value=0, max_value=99, value=50,
+                                                step=5, help="Percentage of overlap between segments (typically 50%).")
                 except Exception as e:
                     st.error(f"Failed to parse CSV file: {e}")
                     df = None
@@ -541,7 +543,7 @@ with tab_spectral:
                         ax.set_title(f"FFT Spectrum: {sig_col}")
                     elif method == "Welch":
                         freq, df_bin, psd = sa.welch_spectrum(
-                            time_vals, sig, chunks=chunks, overlap=overlap)
+                            time_vals, sig, chunks=chunks, overlap=overlap/100.0)
                         ax.loglog(freq, psd)
                         ax.set_title(f"Welch Spectrum: {sig_col}")
 
@@ -578,6 +580,7 @@ with tab_spectral:
                         label="Download Spectrum CSV",
                         data=csv_data,
                         icon="⬇️",
+                        type="primary",
                         file_name=f"spectrum_{method.lower()}_{sig_col}.csv",
                         mime="text/csv",
                         help="Download the calculated Power Spectral Density data."
