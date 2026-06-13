@@ -146,6 +146,8 @@ with tab_fwh:
             with oc3:
                 oz = st.number_input(
                     "Observer Z (m)", value=1.0, step=1.0, format="%.1f", help="Z Coordinate in meters")
+            dist = np.sqrt(ox**2 + oy**2 + oz**2)
+            st.caption(f"📏 Distance from origin: **{dist:.2f} m**")
             obs_loc_str = str([[ox, oy, oz]])
         else:
             obs_loc_str = st.text_area("Coordinates List", value="[[0.0, 0.0, 1.0]]", max_chars=5000,
@@ -190,6 +192,7 @@ with tab_fwh:
                             with st.expander("Preview Parsed Coordinates"):
                                 preview_df = pd.DataFrame(
                                     val, columns=["X (m)", "Y (m)", "Z (m)"])
+                                preview_df["Distance (m)"] = np.sqrt(preview_df["X (m)"]**2 + preview_df["Y (m)"]**2 + preview_df["Z (m)"]**2).round(2)
                                 st.dataframe(preview_df, hide_index=True)
         except:
             st.error(
