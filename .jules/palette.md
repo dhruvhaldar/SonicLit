@@ -47,3 +47,7 @@
 ## 2026-06-12 - Usable Float Steps in Streamlit Number Inputs
 **Learning:** In Streamlit, `st.number_input` widgets for floating-point values implicitly default to a step size of `0.01`. For inputs representing larger physical quantities (like Ambient Temperature around 298.0 K), this default makes the widget's native `+` and `-` spin buttons practically useless, as adjusting the value by 1 degree requires 100 clicks.
 **Action:** Always evaluate the physical domain of a floating-point `st.number_input`. Explicitly define a contextually meaningful `step` parameter (e.g., `step=1.0` or `step=0.1`) to ensure the increment/decrement interactions are intuitive and helpful rather than tedious.
+
+## 2026-06-15 - Live Physics Feedback in Tkinter with StringVar Trace
+**Learning:** Abstract physical inputs (like "Ambient Temperature") in Tkinter desktop applications leave users guessing about their derived runtime implications (like "Speed of Sound") unless explicitly displayed. In Streamlit, this is handled via natural top-to-bottom re-evaluation, but Tkinter requires explicit reactive wiring.
+**Action:** Always surface critical derived calculations instantly in Tkinter by binding a `StringVar.trace_add("write", callback)` to the input `ttk.Entry`. This allows a sub-label (e.g., `ttk.Label(..., foreground="gray")`) to update dynamically as the user types, providing immediate, trust-building feedback without requiring a "Run" click.

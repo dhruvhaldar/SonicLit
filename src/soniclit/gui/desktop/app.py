@@ -114,10 +114,33 @@ class SonicLitApp:
 
         # Temperature
         ttk.Label(frame, text="Temperature (K):").grid(row=row, column=0, sticky='w', padx=5, pady=5)
-        self.fwh_temp = ttk.Entry(frame, width=20)
-        self.fwh_temp.insert(0, "298.0")
+        self.fwh_temp_var = tk.StringVar(value="298.0")
+        self.fwh_temp = ttk.Entry(frame, width=20, textvariable=self.fwh_temp_var)
         self.fwh_temp.grid(row=row, column=1, sticky='w', padx=5, pady=5)
         row += 1
+
+        # Live Temperature / Speed of Sound Feedback
+        self.fwh_temp_feedback = ttk.Label(frame, text="", foreground="gray")
+        self.fwh_temp_feedback.grid(row=row, column=1, sticky='w', padx=5, pady=(0, 5))
+        row += 1
+
+        def update_temp_feedback(*args):
+            try:
+                temp_val = float(self.fwh_temp_var.get())
+                if temp_val < 0:
+                    self.fwh_temp_feedback.config(text="Invalid: Temp < 0 K", foreground="red")
+                else:
+                    speed_of_sound = 20.05 * np.sqrt(temp_val)
+                    temp_celsius = temp_val - 273.15
+                    self.fwh_temp_feedback.config(
+                        text=f"🌡️ {temp_celsius:.1f} °C  |  🔊 Speed of Sound: {speed_of_sound:.1f} m/s",
+                        foreground="gray"
+                    )
+            except ValueError:
+                self.fwh_temp_feedback.config(text="")
+
+        self.fwh_temp_var.trace_add("write", update_temp_feedback)
+        update_temp_feedback() # Initialize
 
         # Permeable
         self.fwh_perm_var = tk.BooleanVar(value=False)
