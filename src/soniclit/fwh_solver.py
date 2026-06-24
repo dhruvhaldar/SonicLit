@@ -565,9 +565,12 @@ def stationary_serial(surf_file : str,  output_filename : str, observer_location
             R0_sq = np.einsum('ij,ij->i', diff, diff)
 
             # Calculate R - effective acoustic distance
-            Rstar = np.sqrt(Mr0*Mr0 + beta_sq * R0_sq)
-            # Optimized: multiply by precomputed inverse square is faster than division
-            R = (-Mr0+Rstar) * inv_beta_sq
+            # Optimization: Avoid allocating intermediate arrays by computing R in-place
+            R = np.square(Mr0)
+            R += beta_sq * R0_sq
+            np.sqrt(R, out=R)
+            R -= Mr0
+            R *= inv_beta_sq
 
             # Radiation vector (mathematically optimized to avoid (N,3) allocation)
             inv_R = 1.0 / R
@@ -948,9 +951,12 @@ def stationary_parallel(surf_file : str,  output_filename : str, observer_locati
         R0_sq = np.einsum('ij,ij->i', diff, diff)
 
         # Calculate R - effective acoustic distance
-        Rstar = np.sqrt(Mr0*Mr0 + beta_sq * R0_sq)
-        # Optimized: multiply by precomputed inverse square is faster than division
-        R = (-Mr0+Rstar) * inv_beta_sq
+        # Optimization: Avoid allocating intermediate arrays by computing R in-place
+        R = np.square(Mr0)
+        R += beta_sq * R0_sq
+        np.sqrt(R, out=R)
+        R -= Mr0
+        R *= inv_beta_sq
 
         # Radiation vector (mathematically optimized to avoid (N,3) allocation)
         inv_R = 1.0 / R
