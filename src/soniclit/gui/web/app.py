@@ -420,6 +420,7 @@ with tab_spectral:
     col1, col2 = st.columns([1, 1])
 
     with col1:
+        st.subheader("Configuration")
         uploaded_sig = st.file_uploader(
             "Upload Signal CSV", type="csv", help="CSV file with time and signal columns.", key="sa_csv_uploader")
 
@@ -503,7 +504,7 @@ with tab_spectral:
                                 "No signal columns available (the file only has 1 column). Please upload a file with at least two columns.")
                             sig_col = None
 
-                    method = st.radio("Method", ["FFT", "Welch"], horizontal=True,
+                    method = st.radio("**Analysis Method**", ["FFT", "Welch"], horizontal=True,
                                       help="Choose 'FFT' for standard spectrum or 'Welch' for smoothed periodogram.")
 
                     if method == "Welch":
@@ -521,6 +522,7 @@ with tab_spectral:
                     sig_col = None
 
     with col2:
+        st.subheader("Results")
         if file_to_process_spectral and sig_col is not None:
             try:
                 time_vals = df[time_col].values
