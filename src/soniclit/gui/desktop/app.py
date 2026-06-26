@@ -79,16 +79,19 @@ class SonicLitApp:
         row += 1
 
         # Time setup
-        ttk.Label(frame, text="Time Step (s):").grid(row=row, column=0, sticky='w', padx=5, pady=5)
-        self.fwh_dt = ttk.Entry(frame, width=20)
-        self.fwh_dt.insert(0, "0.01")
-        self.fwh_dt.grid(row=row, column=1, sticky='w', padx=5, pady=5)
-        row += 1
+        ttk.Label(frame, text="Simulation Time:").grid(row=row, column=0, sticky='w', padx=5, pady=5)
+        time_frame = ttk.Frame(frame)
+        time_frame.grid(row=row, column=1, sticky='w', padx=5, pady=5)
 
-        ttk.Label(frame, text="Number of Steps:").grid(row=row, column=0, sticky='w', padx=5, pady=5)
-        self.fwh_steps = ttk.Entry(frame, width=20)
+        ttk.Label(time_frame, text="Step (s):").grid(row=0, column=0)
+        self.fwh_dt = ttk.Entry(time_frame, width=10)
+        self.fwh_dt.insert(0, "0.01")
+        self.fwh_dt.grid(row=0, column=1, padx=(0, 10))
+
+        ttk.Label(time_frame, text="Steps:").grid(row=0, column=2)
+        self.fwh_steps = ttk.Entry(time_frame, width=10)
         self.fwh_steps.insert(0, "10")
-        self.fwh_steps.grid(row=row, column=1, sticky='w', padx=5, pady=5)
+        self.fwh_steps.grid(row=0, column=3)
         row += 1
 
         # Mach Number
