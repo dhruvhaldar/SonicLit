@@ -479,7 +479,7 @@ with tab_spectral:
                         st.dataframe(df.head(), use_container_width=True)
 
                     st.caption(
-                        f"✅ Loaded **{len(df)}** rows, **{len(df.columns)}** columns.")
+                        f"✅ Loaded **{len(df):,}** rows, **{len(df.columns)}** columns.")
 
                     # Smart default selection
                     time_candidates = ["time", "t", "seconds", "s"]
