@@ -188,10 +188,12 @@ class SonicLitApp:
         row += 1
 
         # Method
-        ttk.Label(frame, text="Method:").grid(row=row, column=0, sticky='w', padx=5, pady=5)
-        self.sa_method = ttk.Combobox(frame, values=["FFT", "Welch"], state="readonly")
-        self.sa_method.current(0)
-        self.sa_method.grid(row=row, column=1, sticky='w', padx=5, pady=5)
+        ttk.Label(frame, text="Analysis Method:").grid(row=row, column=0, sticky='w', padx=5, pady=5)
+        method_frame = ttk.Frame(frame)
+        method_frame.grid(row=row, column=1, sticky='w', padx=5, pady=5)
+        self.sa_method_var = tk.StringVar(value="FFT")
+        ttk.Radiobutton(method_frame, text="FFT", variable=self.sa_method_var, value="FFT").pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Radiobutton(method_frame, text="Welch", variable=self.sa_method_var, value="Welch").pack(side=tk.LEFT)
         row += 1
 
         # Plot Button
@@ -362,7 +364,7 @@ class SonicLitApp:
 
         time_col = self.sa_time_col.get().strip()
         sig_col = self.sa_sig_col.get().strip()
-        method = self.sa_method.get()
+        method = self.sa_method_var.get()
 
         if not time_col or not sig_col:
             messagebox.showwarning("Input Required", "Please select or enter both Time and Signal column names.")
