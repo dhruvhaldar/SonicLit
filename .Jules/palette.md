@@ -120,3 +120,7 @@
 ## 2026-06-02 - Testing Streamlit Spinbuttons
 **Learning:** When using Playwright to test Streamlit `st.number_input` widgets, locating them by label using `page.get_by_label()` can fail with a strict mode violation because the label resolves to both the input field and its associated help tooltip button.
 **Action:** Always locate `st.number_input` widgets using their specific ARIA role combined with the label text, such as `page.get_by_role("spinbutton", name="Time Step (s)")`, to uniquely identify the input field and avoid test flakiness.
+
+## 2024-07-04 - Radio Buttons vs Comboboxes in Tkinter
+**Learning:** In desktop GUIs (Tkinter), two-option choices are visually hidden and require multiple clicks when placed in a `ttk.Combobox`. Using horizontal `ttk.Radiobutton`s exposes the mutually exclusive choices immediately and reduces user interaction cost, mirroring best practices from web design.
+**Action:** Always replace `ttk.Combobox` or `st.selectbox` with radio buttons when there are exactly two options.
