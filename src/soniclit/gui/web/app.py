@@ -202,7 +202,7 @@ with tab_fwh:
         col_t1, col_t2 = st.columns(2)
         with col_t1:
             dt_val = st.number_input(
-                "Time Step (s)", value=0.01, min_value=0.0001, format="%.4f", help="Simulation time step in seconds.")
+                "Time Step (s)", value=0.01, min_value=0.0001, step=0.001, format="%.4f", help="Simulation time step in seconds.")
         with col_t2:
             steps_val = st.number_input("Number of Steps", value=10, step=1, min_value=1,
                                         max_value=100000, help="Total number of time steps to process.")
