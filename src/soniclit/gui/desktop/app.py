@@ -84,15 +84,36 @@ class SonicLitApp:
         time_frame.grid(row=row, column=1, sticky='w', padx=5, pady=5)
 
         ttk.Label(time_frame, text="Step (s):").grid(row=0, column=0)
-        self.fwh_dt = ttk.Entry(time_frame, width=10)
-        self.fwh_dt.insert(0, "0.01")
+        self.fwh_dt_var = tk.StringVar(value="0.01")
+        self.fwh_dt = ttk.Entry(time_frame, width=10, textvariable=self.fwh_dt_var)
         self.fwh_dt.grid(row=0, column=1, padx=(0, 10))
 
         ttk.Label(time_frame, text="Steps:").grid(row=0, column=2)
-        self.fwh_steps = ttk.Entry(time_frame, width=10)
-        self.fwh_steps.insert(0, "10")
+        self.fwh_steps_var = tk.StringVar(value="10")
+        self.fwh_steps = ttk.Entry(time_frame, width=10, textvariable=self.fwh_steps_var)
         self.fwh_steps.grid(row=0, column=3)
         row += 1
+
+        # Live Time Feedback
+        self.fwh_time_feedback = ttk.Label(frame, text="", foreground="gray")
+        self.fwh_time_feedback.grid(row=row, column=1, sticky='w', padx=5, pady=(0, 5))
+        row += 1
+
+        def update_time_feedback(*args):
+            try:
+                dt_val = float(self.fwh_dt_var.get())
+                steps_val = float(self.fwh_steps_var.get())
+                if dt_val <= 0 or steps_val <= 0:
+                    self.fwh_time_feedback.config(text="Invalid: dt and steps must be > 0", foreground="red")
+                else:
+                    total_time = dt_val * steps_val
+                    self.fwh_time_feedback.config(text=f"⏱️ Total Simulation Time: {total_time:.4f} s", foreground="gray")
+            except ValueError:
+                self.fwh_time_feedback.config(text="")
+
+        self.fwh_dt_var.trace_add("write", update_time_feedback)
+        self.fwh_steps_var.trace_add("write", update_time_feedback)
+        update_time_feedback()
 
         # Mach Number
         ttk.Label(frame, text="Mach Vector Components (Mx, My, Mz):").grid(row=row, column=0, sticky='w', padx=5, pady=5)
@@ -100,20 +121,40 @@ class SonicLitApp:
         ma_frame.grid(row=row, column=1, sticky='w', padx=5, pady=5)
 
         ttk.Label(ma_frame, text="X:").grid(row=0, column=0)
-        self.fwh_mx = ttk.Entry(ma_frame, width=10)
-        self.fwh_mx.insert(0, "0.0")
+        self.fwh_mx_var = tk.StringVar(value="0.0")
+        self.fwh_mx = ttk.Entry(ma_frame, width=10, textvariable=self.fwh_mx_var)
         self.fwh_mx.grid(row=0, column=1, padx=(0, 10))
 
         ttk.Label(ma_frame, text="Y:").grid(row=0, column=2)
-        self.fwh_my = ttk.Entry(ma_frame, width=10)
-        self.fwh_my.insert(0, "0.0")
+        self.fwh_my_var = tk.StringVar(value="0.0")
+        self.fwh_my = ttk.Entry(ma_frame, width=10, textvariable=self.fwh_my_var)
         self.fwh_my.grid(row=0, column=3, padx=(0, 10))
 
         ttk.Label(ma_frame, text="Z:").grid(row=0, column=4)
-        self.fwh_mz = ttk.Entry(ma_frame, width=10)
-        self.fwh_mz.insert(0, "0.0")
+        self.fwh_mz_var = tk.StringVar(value="0.0")
+        self.fwh_mz = ttk.Entry(ma_frame, width=10, textvariable=self.fwh_mz_var)
         self.fwh_mz.grid(row=0, column=5)
         row += 1
+
+        # Live Mach Feedback
+        self.fwh_mach_feedback = ttk.Label(frame, text="", foreground="gray")
+        self.fwh_mach_feedback.grid(row=row, column=1, sticky='w', padx=5, pady=(0, 5))
+        row += 1
+
+        def update_mach_feedback(*args):
+            try:
+                mx_val = float(self.fwh_mx_var.get())
+                my_val = float(self.fwh_my_var.get())
+                mz_val = float(self.fwh_mz_var.get())
+                mach_mag = np.sqrt(mx_val**2 + my_val**2 + mz_val**2)
+                self.fwh_mach_feedback.config(text=f"✈️ Total Mach Magnitude: {mach_mag:.2f}", foreground="gray")
+            except ValueError:
+                self.fwh_mach_feedback.config(text="")
+
+        self.fwh_mx_var.trace_add("write", update_mach_feedback)
+        self.fwh_my_var.trace_add("write", update_mach_feedback)
+        self.fwh_mz_var.trace_add("write", update_mach_feedback)
+        update_mach_feedback()
 
         # Temperature
         ttk.Label(frame, text="Temperature (K):").grid(row=row, column=0, sticky='w', padx=5, pady=5)
@@ -294,17 +335,17 @@ class SonicLitApp:
             oz = float(self.fwh_oz.get())
             obs_loc = [[ox, oy, oz]]
 
-            dt = float(self.fwh_dt.get())
+            dt = float(self.fwh_dt_var.get())
             if dt <= 0:
                 raise ValueError("Time step (dt) must be strictly positive.")
 
-            steps = int(self.fwh_steps.get())
+            steps = int(self.fwh_steps_var.get())
             if steps <= 0:
                 raise ValueError("Number of steps must be strictly positive.")
 
-            mx = float(self.fwh_mx.get())
-            my = float(self.fwh_my.get())
-            mz = float(self.fwh_mz.get())
+            mx = float(self.fwh_mx_var.get())
+            my = float(self.fwh_my_var.get())
+            mz = float(self.fwh_mz_var.get())
             ma = [mx, my, mz]
 
             perm = self.fwh_perm_var.get()
